@@ -2,8 +2,32 @@ in Main/Game.java
 GameState includes OPTIONS, but Game.update() and Game.render() do not handle it. That explains why clicking “Options” leads to “nothing shows up” — the state changes to OPTIONS, but there is no update/draw path for OPTIONS, so you get a blank screen and no UI rendered. (Done - Boray)
 
 
-Add music&SFX
+Add music & SFX
+
+Add enemy attack
+
+Add player attack and kill
+
+Design Levels properly
+
+Change the character Sprite
+
+Add Health Bar or hearts
+
+Add Potion for healing
+
+Add score
+
+Add spikes/death when character falls to a pit
+
+Add double jump
+
+Make Levels bigger or side scroll
+
+
+
 
 Assets(https://rvros.itch.io/animated-pixel-hero, https://pixelfrog-assets.itch.io/treasure-hunters)
+
 
 
