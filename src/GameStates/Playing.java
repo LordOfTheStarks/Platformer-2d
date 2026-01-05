@@ -61,8 +61,9 @@ public class Playing extends State implements StateMethods{
     }
 
     private void handleBorderTransitions() {
-        // Go to next level when crossing right border
-        if (playerRight() >= GAME_WIDTH) {
+        // Trigger near right border to avoid boundary solidity blocking exact GAME_WIDTH
+        int threshold = GAME_WIDTH - (TILES_SIZE / 4);
+        if (playerRight() >= threshold) {
             if (!levelManager.isLastLevel()) {
                 levelManager.nextLevel();
                 // reload data references
@@ -71,14 +72,12 @@ public class Playing extends State implements StateMethods{
                 // place player at left start
                 setPlayerLeftStart();
             } else {
-                // last level reached: return to menu or loop
                 GameState.state = GameState.MENU;
             }
         }
     }
 
     private void handlePitDeath() {
-        // If player falls below the visible game area, game over (return to menu)
         if (playerBottom() > GAME_HEIGHT + 200) {
             levelManager.resetToFirstLevel();
             player.loadLevelData(levelManager.getCurrentLevel().getLevelData());
@@ -105,13 +104,13 @@ public class Playing extends State implements StateMethods{
 
     private void setPlayerLeftStart() {
         Rectangle2D.Float hb = player.getHitBox();
-        hb.x = (int)(32 * SCALE);  // small margin
-        hb.y = (int)(100 * SCALE); // safe height; gravity will settle to floor
+        hb.x = (int)(32 * SCALE);
+        hb.y = (int)(100 * SCALE);
     }
 
     @Override
     public void draw(Graphics g) {
-        levelManager.draw(g);       // backgrounds + tiles
+        levelManager.draw(g);
         player.render(g);
         enemyManager.draw(g);
         if(paused){
