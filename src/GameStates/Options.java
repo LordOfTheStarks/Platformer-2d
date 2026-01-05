@@ -12,8 +12,8 @@ public class Options extends State implements StateMethods {
 
     public Options(Game game) {
         super(game);
-        // Reuse the PauseOverlay UI (music & SFX toggle buttons) for the options screen
-        overlay = new PauseOverlay();
+        // Reuse overlay UI (sound, volume, URM buttons)
+        overlay = new PauseOverlay(game);
     }
 
     @Override
@@ -27,9 +27,7 @@ public class Options extends State implements StateMethods {
     }
 
     @Override
-    public void mouseClicked(MouseEvent e) {
-        // No special click handling for options; toggles are handled via press/release
-    }
+    public void mouseClicked(MouseEvent e) { }
 
     @Override
     public void mouseReleased(MouseEvent e) {
@@ -46,6 +44,11 @@ public class Options extends State implements StateMethods {
         overlay.mouseMoved(e);
     }
 
+    // Support dragging for volume sliders
+    public void mouseDragged(MouseEvent e) {
+        overlay.mouseDragged(e);
+    }
+
     @Override
     public void keyPressed(KeyEvent e) {
         // ESC returns to menu
@@ -55,7 +58,5 @@ public class Options extends State implements StateMethods {
     }
 
     @Override
-    public void keyReleased(KeyEvent e) {
-        // No-op
-    }
+    public void keyReleased(KeyEvent e) { }
 }

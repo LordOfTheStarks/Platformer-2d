@@ -27,21 +27,21 @@ public class SoundButton extends PauseButtons{
             }
         }
     }
-
     public void update(){
-        // Determine row by mute state
-        rowIndex = muted ? 1 : 0;
+        if(muted)
+            rowIndex = 1;
+        else
+            rowIndex = 0;
 
-        // Determine column by hover/press
         colIndex = 0;
-        if(mouseOver) colIndex = 1;
-        if(mousePressed) colIndex = 2;
+        if(mouseOver)
+            colIndex = 1;
+        if(mousePressed)
+            colIndex = 2;
     }
-
     public void draw(Graphics g){
-        g.drawImage(soundImages[rowIndex][colIndex], x, y, width, height, null);
+        g.drawImage(soundImages[rowIndex][colIndex],x,y,width,height,null);
     }
-
     public boolean isMouseOver() {
         return mouseOver;
     }

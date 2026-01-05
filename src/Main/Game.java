@@ -23,7 +23,6 @@ public class Game implements Runnable{
     public final static int TILES_SIZE = (int)(TILES_DEFAULT*SCALE);
     public final static int GAME_WIDTH = TILES_SIZE*TILES_WIDTH;
     public final static int GAME_HEIGHT = TILES_SIZE*TILES_HEIGHT;
-
     public Game(){
         init();
 
@@ -32,6 +31,7 @@ public class Game implements Runnable{
         gamePanel.requestFocus();
 
         startGameLoop();
+
     }
 
     private void init() {
@@ -55,7 +55,6 @@ public class Game implements Runnable{
                 break;
         }
     }
-
     public void render(Graphics g){
         switch(GameState.state){
             case MENU:
@@ -73,12 +72,10 @@ public class Game implements Runnable{
                 break;
         }
     }
-
     public void startGameLoop(){
         gameThread = new Thread(this);
         gameThread.start();
     }
-
     @Override
     public void run() {
         double timePerFrame = 1000000000.0/FPS;
@@ -116,13 +113,11 @@ public class Game implements Runnable{
             }
         }
     }
-
     public void windowFocusLost() {
         if(GameState.state == GameState.PLAYING){
             playing.getPlayer().resetBooleans();
         }
     }
-
     public Menu getMenu(){
         return menu;
     }
@@ -131,7 +126,5 @@ public class Game implements Runnable{
         return playing;
     }
 
-    public Options getOptions() {
-        return options;
-    }
+    public Options getOptions() { return options; }
 }

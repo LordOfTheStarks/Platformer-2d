@@ -26,7 +26,7 @@ public class Playing extends State implements StateMethods{
         levelManager = new LevelManager(game);
         player = new Player(200,200,(int)(62.5*SCALE),(int)(46.25*SCALE));
         player.loadLevelData(levelManager.getCurrentLevel().getLevelData());
-        pauseOverlay = new PauseOverlay();
+        pauseOverlay = new PauseOverlay(game);
     }
 
     public void windowFocusLost() {
@@ -36,21 +36,28 @@ public class Playing extends State implements StateMethods{
         return player;
     }
 
+    public boolean isPaused() {
+        return paused;
+    }
+    public void setPaused(boolean paused) {
+        this.paused = paused;
+    }
+
     @Override
     public void update() {
-       levelManager.update();
-       player.update();
+        levelManager.update();
+        player.update();
 
-       pauseOverlay.update();
+        pauseOverlay.update();
     }
 
     @Override
     public void draw(Graphics g) {
-         levelManager.draw(g);
-         player.render(g);
-         if(paused){
-             pauseOverlay.draw(g);
-         }
+        levelManager.draw(g);
+        player.render(g);
+        if(paused){
+            pauseOverlay.draw(g);
+        }
     }
 
     @Override
@@ -78,12 +85,16 @@ public class Playing extends State implements StateMethods{
             pauseOverlay.mouseMoved(e);
     }
 
+    // Added to support slider dragging while paused
+    public void mouseDragged(MouseEvent e) {
+        if (paused)
+            pauseOverlay.mouseDragged(e);
+    }
+
     @Override
     public void keyPressed(KeyEvent e) {
         switch (e.getKeyCode()) {
-            case KeyEvent.VK_W -> {
-                System.out.println("W key");
-            }
+            case KeyEvent.VK_W -> System.out.println("W key");
             case KeyEvent.VK_A ->{
                 player.setLeft(true);
                 System.out.println("A key");
@@ -92,9 +103,7 @@ public class Playing extends State implements StateMethods{
                 player.setRight(true);
                 System.out.println("D key");
             }
-            case KeyEvent.VK_S -> {
-                System.out.println("S key");
-            }
+            case KeyEvent.VK_S -> System.out.println("S key");
             case KeyEvent.VK_SPACE -> {
                 player.setJump(true);
                 System.out.println("Jump key");

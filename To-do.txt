@@ -1,5 +1,9 @@
 in Main/Game.java
-GameState includes OPTIONS, but Game.update() and Game.render() do not handle it. That explains why clicking “Options” leads to “nothing shows up” — the state changes to OPTIONS, but there is no update/draw path for OPTIONS, so you get a blank screen and no UI rendered.
+GameState includes OPTIONS, but Game.update() and Game.render() do not handle it. That explains why clicking “Options” leads to “nothing shows up” — the state changes to OPTIONS, but there is no update/draw path for OPTIONS, so you get a blank screen and no UI rendered. (Done - Boray)
 
 
-Add music
+Add music&SFX
+
+Assets(https://rvros.itch.io/animated-pixel-hero)
+
+
