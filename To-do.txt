@@ -4,6 +4,6 @@ GameState includes OPTIONS, but Game.update() and Game.render() do not handle it
 
 Add music&SFX
 
-Assets(https://rvros.itch.io/animated-pixel-hero)
+Assets(https://rvros.itch.io/animated-pixel-hero, https://pixelfrog-assets.itch.io/treasure-hunters)
 
 

@@ -1,20 +1,22 @@
 package GameStates;
 
+import Entities.EnemyManager;
 import Entities.Player;
 import Main.Game;
 import levels.LevelManager;
-import ui.PauseOverlay;
 
 import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
+import java.awt.geom.Rectangle2D;
 
 import static Main.Game.*;
 
 public class Playing extends State implements StateMethods{
     private Player player;
     private LevelManager levelManager;
-    private PauseOverlay pauseOverlay;
+    private EnemyManager enemyManager;
+    private ui.PauseOverlay pauseOverlay;
     private boolean paused;
 
     public Playing(Game game) {
@@ -24,9 +26,13 @@ public class Playing extends State implements StateMethods{
 
     private void init() {
         levelManager = new LevelManager(game);
-        player = new Player(200,200,(int)(62.5*SCALE),(int)(46.25*SCALE));
+        player = new Player(100, 200,(int)(62.5*SCALE),(int)(46.25*SCALE));
         player.loadLevelData(levelManager.getCurrentLevel().getLevelData());
-        pauseOverlay = new PauseOverlay(game);
+
+        enemyManager = new EnemyManager();
+        enemyManager.spawnForLevel(levelManager.getCurrentLevel());
+
+        pauseOverlay = new ui.PauseOverlay(game);
     }
 
     public void windowFocusLost() {
@@ -47,14 +53,67 @@ public class Playing extends State implements StateMethods{
     public void update() {
         levelManager.update();
         player.update();
-
+        enemyManager.update();
         pauseOverlay.update();
+
+        handleBorderTransitions();
+        handlePitDeath();
+    }
+
+    private void handleBorderTransitions() {
+        // Go to next level when crossing right border
+        if (playerRight() >= GAME_WIDTH) {
+            if (!levelManager.isLastLevel()) {
+                levelManager.nextLevel();
+                // reload data references
+                player.loadLevelData(levelManager.getCurrentLevel().getLevelData());
+                enemyManager.spawnForLevel(levelManager.getCurrentLevel());
+                // place player at left start
+                setPlayerLeftStart();
+            } else {
+                // last level reached: return to menu or loop
+                GameState.state = GameState.MENU;
+            }
+        }
+    }
+
+    private void handlePitDeath() {
+        // If player falls below the visible game area, game over (return to menu)
+        if (playerBottom() > GAME_HEIGHT + 200) {
+            levelManager.resetToFirstLevel();
+            player.loadLevelData(levelManager.getCurrentLevel().getLevelData());
+            enemyManager.spawnForLevel(levelManager.getCurrentLevel());
+            setPlayerLeftStart();
+            GameState.state = GameState.MENU;
+        }
+    }
+
+    private int playerLeft() {
+        Rectangle2D.Float hb = player.getHitBox();
+        return (int) hb.x;
+    }
+
+    private int playerRight() {
+        Rectangle2D.Float hb = player.getHitBox();
+        return (int) (hb.x + hb.width);
+    }
+
+    private int playerBottom() {
+        Rectangle2D.Float hb = player.getHitBox();
+        return (int) (hb.y + hb.height);
+    }
+
+    private void setPlayerLeftStart() {
+        Rectangle2D.Float hb = player.getHitBox();
+        hb.x = (int)(32 * SCALE);  // small margin
+        hb.y = (int)(100 * SCALE); // safe height; gravity will settle to floor
     }
 
     @Override
     public void draw(Graphics g) {
-        levelManager.draw(g);
+        levelManager.draw(g);       // backgrounds + tiles
         player.render(g);
+        enemyManager.draw(g);
         if(paused){
             pauseOverlay.draw(g);
         }
@@ -85,7 +144,6 @@ public class Playing extends State implements StateMethods{
             pauseOverlay.mouseMoved(e);
     }
 
-    // Added to support slider dragging while paused
     public void mouseDragged(MouseEvent e) {
         if (paused)
             pauseOverlay.mouseDragged(e);
@@ -94,24 +152,10 @@ public class Playing extends State implements StateMethods{
     @Override
     public void keyPressed(KeyEvent e) {
         switch (e.getKeyCode()) {
-            case KeyEvent.VK_W -> System.out.println("W key");
-            case KeyEvent.VK_A ->{
-                player.setLeft(true);
-                System.out.println("A key");
-            }
-            case KeyEvent.VK_D -> {
-                player.setRight(true);
-                System.out.println("D key");
-            }
-            case KeyEvent.VK_S -> System.out.println("S key");
-            case KeyEvent.VK_SPACE -> {
-                player.setJump(true);
-                System.out.println("Jump key");
-            }
-            case KeyEvent.VK_ESCAPE -> {
-                paused = !paused;
-                System.out.println("Escape key");
-            }
+            case KeyEvent.VK_A -> player.setLeft(true);
+            case KeyEvent.VK_D -> player.setRight(true);
+            case KeyEvent.VK_SPACE -> player.setJump(true);
+            case KeyEvent.VK_ESCAPE -> paused = !paused;
         }
     }
 
