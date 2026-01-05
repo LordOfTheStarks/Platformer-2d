@@ -14,6 +14,7 @@ public class PauseOverlay {
     private BufferedImage pauseBackground;
     private SoundButton musicButton,sfxButton;
     private int pbgX,pbgY,pbgW,pbgH;
+
     public PauseOverlay(){
         loadBackGround();
         createSoundButtons();
@@ -34,19 +35,17 @@ public class PauseOverlay {
     }
 
     public void update(){
-         musicButton.update();
-         sfxButton.update();
+        musicButton.update();
+        sfxButton.update();
     }
+
     public void draw(Graphics g){
-
         g.drawImage(pauseBackground,pbgX,pbgY,pbgW,pbgH,null);
-
         musicButton.draw(g);
         sfxButton.draw(g);
     }
-    public void mouseDragged(MouseEvent e){
 
-    }
+    public void mouseDragged(MouseEvent e){ }
 
     public void mouseReleased(MouseEvent e) {
         if(isIn(e,musicButton))
@@ -55,20 +54,24 @@ public class PauseOverlay {
 
         if(isIn(e,sfxButton))
             if (sfxButton.isMousePressed())
-                sfxButton.setMuted(!musicButton.isMuted());
+                sfxButton.setMuted(!sfxButton.isMuted());
+
+        // Reset pressed flags after release
+        musicButton.setMousePressed(false);
+        sfxButton.setMousePressed(false);
     }
 
     public void mousePressed(MouseEvent e) {
-         if(isIn(e,musicButton))
-             musicButton.setMousePressed(true);
+        if(isIn(e,musicButton))
+            musicButton.setMousePressed(true);
 
-         if(isIn(e,sfxButton))
-             sfxButton.setMousePressed(true);
+        if(isIn(e,sfxButton))
+            sfxButton.setMousePressed(true);
     }
 
     public void mouseMoved(MouseEvent e) {
-       musicButton.setMouseOver(false);
-       sfxButton.setMouseOver(false);
+        musicButton.setMouseOver(false);
+        sfxButton.setMouseOver(false);
 
         if(isIn(e,musicButton))
             musicButton.setMouseOver(true);
@@ -76,8 +79,8 @@ public class PauseOverlay {
         if(isIn(e,sfxButton))
             sfxButton.setMouseOver(true);
     }
-    private boolean isIn(MouseEvent e, PauseButtons b){
-         return b.getBounds().contains(e.getX(),e.getY());
-    }
 
+    private boolean isIn(MouseEvent e, PauseButtons b){
+        return b.getBounds().contains(e.getX(),e.getY());
+    }
 }

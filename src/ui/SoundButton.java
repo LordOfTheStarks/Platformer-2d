@@ -13,7 +13,6 @@ public class SoundButton extends PauseButtons{
     private boolean mouseOver,mousePressed,muted;
     private int rowIndex,colIndex;
 
-
     public SoundButton(int x, int y, int width, int height) {
         super(x, y, width, height);
         loadSoundImages();
@@ -28,22 +27,21 @@ public class SoundButton extends PauseButtons{
             }
         }
     }
+
     public void update(){
-         if(muted)
-             rowIndex = 1;
-         else
-             rowIndex = 0;
+        // Determine row by mute state
+        rowIndex = muted ? 1 : 0;
 
-         if(mouseOver)
-             colIndex = 1;
-         if(mousePressed)
-             colIndex = 2;
-
-
+        // Determine column by hover/press
+        colIndex = 0;
+        if(mouseOver) colIndex = 1;
+        if(mousePressed) colIndex = 2;
     }
+
     public void draw(Graphics g){
-       g.drawImage(soundImages[0][0],x,y,width,height,null);
+        g.drawImage(soundImages[rowIndex][colIndex], x, y, width, height, null);
     }
+
     public boolean isMouseOver() {
         return mouseOver;
     }
@@ -67,5 +65,4 @@ public class SoundButton extends PauseButtons{
     public void setMuted(boolean muted) {
         this.muted = muted;
     }
-
 }

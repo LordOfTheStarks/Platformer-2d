@@ -12,13 +12,17 @@ public class MouseInputs implements MouseListener, MouseMotionListener {
     public MouseInputs(GamePanel gamePanel){
         this.gamePanel = gamePanel;
     }
+
     @Override
     public void mouseClicked(MouseEvent e) {
-           switch(GameState.state){
-               case PLAYING:
-                   gamePanel.getGame().getPlaying().mouseClicked(e);
-                   break;
-           }
+        switch(GameState.state){
+            case PLAYING:
+                gamePanel.getGame().getPlaying().mouseClicked(e);
+                break;
+            case OPTIONS:
+                // No special click handling for options; managed via press/release
+                break;
+        }
     }
 
     @Override
@@ -29,6 +33,9 @@ public class MouseInputs implements MouseListener, MouseMotionListener {
                 break;
             case PLAYING:
                 gamePanel.getGame().getPlaying().mousePressed(e);
+                break;
+            case OPTIONS:
+                gamePanel.getGame().getOptions().mousePressed(e);
                 break;
         }
     }
@@ -42,24 +49,20 @@ public class MouseInputs implements MouseListener, MouseMotionListener {
             case PLAYING:
                 gamePanel.getGame().getPlaying().mouseReleased(e);
                 break;
+            case OPTIONS:
+                gamePanel.getGame().getOptions().mouseReleased(e);
+                break;
         }
-
     }
 
     @Override
-    public void mouseEntered(MouseEvent e) {
-
-    }
+    public void mouseEntered(MouseEvent e) { }
 
     @Override
-    public void mouseExited(MouseEvent e) {
-
-    }
+    public void mouseExited(MouseEvent e) { }
 
     @Override
-    public void mouseDragged(MouseEvent e) {
-
-    }
+    public void mouseDragged(MouseEvent e) { }
 
     @Override
     public void mouseMoved(MouseEvent e) {
@@ -69,6 +72,9 @@ public class MouseInputs implements MouseListener, MouseMotionListener {
                 break;
             case PLAYING:
                 gamePanel.getGame().getPlaying().mouseMoved(e);
+                break;
+            case OPTIONS:
+                gamePanel.getGame().getOptions().mouseMoved(e);
                 break;
         }
     }
