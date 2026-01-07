@@ -94,13 +94,6 @@ public class LevelFactory {
             l[H-1][x] = GROUND;
         }
 
-        // Pillars + top platforms
-        for (int y = H-3; y >= H-9; y--) l[y][4] = GROUND;
-        for (int y = H-3; y >= H-9; y--) l[y][12] = GROUND;
-        for (int y = H-3; y >= H-9; y--) l[y][20] = GROUND;
-
-        for (int x = 4; x <= 12; x++) l[H-9][x] = PLATFORM;
-        for (int x = 12; x <= 20; x++) l[H-9][x] = PLATFORM;
 
         return l;
     }

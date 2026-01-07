@@ -59,7 +59,7 @@ public class PauseOverlay {
         rowY_VolumeTop = rowY_SoundTop + (int)(150 * SCALE);
 
         // URM buttons row: centered at bottom inside the overlay
-        rowY_URM = pbgY + pbgH - URM_SIZE - (int)(30 * SCALE);
+        rowY_URM = pbgY + pbgH - URM_SIZE - (int)(35 * SCALE);
     }
 
     private void createSoundButtons() {
@@ -80,7 +80,7 @@ public class PauseOverlay {
 
     private void createUrmButtons() {
         // Center URM buttons horizontally near the bottom, aligned to slider center
-        int sliderCenterX = pbgX + (pbgW / 2);
+        int sliderCenterX = (int)((pbgX/1.1) + (pbgW / 2));
         int spacing = (int)(URM_SIZE * 1.2);
 
         playButton = new URMButton(sliderCenterX - spacing, rowY_URM, 0); // play/continue
