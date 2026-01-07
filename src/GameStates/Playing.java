@@ -4,6 +4,7 @@ import Entities.EnemyManager;
 import Entities.Player;
 import Main.Game;
 import levels.LevelManager;
+import levels.SpikeManager;
 import ui.GoldUI;
 
 import java.awt.*;
@@ -17,10 +18,10 @@ public class Playing extends State implements StateMethods{
     private Player player;
     private LevelManager levelManager;
     private EnemyManager enemyManager;
+    private SpikeManager spikeManager;
     private ui.PauseOverlay pauseOverlay;
     private boolean paused;
 
-    // NEW: Gold system
     private int gold = 0;
     private final GoldUI goldUI = new GoldUI();
 
@@ -37,6 +38,9 @@ public class Playing extends State implements StateMethods{
         enemyManager = new EnemyManager();
         enemyManager.spawnForLevel(levelManager.getCurrentLevel());
 
+        spikeManager = new SpikeManager();
+        spikeManager.spawnForLevel(levelManager.getCurrentLevel());
+
         pauseOverlay = new ui.PauseOverlay(game);
     }
 
@@ -47,14 +51,9 @@ public class Playing extends State implements StateMethods{
         return player;
     }
 
-    public boolean isPaused() {
-        return paused;
-    }
-    public void setPaused(boolean paused) {
-        this.paused = paused;
-    }
+    public boolean isPaused() { return paused; }
+    public void setPaused(boolean paused) { this.paused = paused; }
 
-    // Gold API (for future: coins/enemy kills/shop)
     public int getGold() { return gold; }
     public void addGold(int amount) { if (amount > 0) gold += amount; }
     public boolean spendGold(int amount) { if (amount <= gold) { gold -= amount; return true; } return false; }
@@ -64,12 +63,25 @@ public class Playing extends State implements StateMethods{
         levelManager.update();
         player.update();
         enemyManager.update();
+        spikeManagerUpdateAndCheck();
         pauseOverlay.update();
-
         goldUI.update();
 
         handleBorderTransitions();
         handlePitDeath();
+    }
+
+    private void spikeManagerUpdateAndCheck() {
+        // Currently no spike update logic; just collision check
+        if (spikeManager.isPlayerOnSpike(player.getHitBox())) {
+            // Game over -> return to menu and reset to first level
+            levelManager.resetToFirstLevel();
+            player.loadLevelData(levelManager.getCurrentLevel().getLevelData());
+            enemyManager.spawnForLevel(levelManager.getCurrentLevel());
+            spikeManager.spawnForLevel(levelManager.getCurrentLevel());
+            setPlayerLeftStart();
+            GameState.state = GameState.MENU;
+        }
     }
 
     private void handleBorderTransitions() {
@@ -79,6 +91,7 @@ public class Playing extends State implements StateMethods{
                 levelManager.nextLevel();
                 player.loadLevelData(levelManager.getCurrentLevel().getLevelData());
                 enemyManager.spawnForLevel(levelManager.getCurrentLevel());
+                spikeManager.spawnForLevel(levelManager.getCurrentLevel());
                 setPlayerLeftStart();
             } else {
                 GameState.state = GameState.MENU;
@@ -91,6 +104,7 @@ public class Playing extends State implements StateMethods{
             levelManager.resetToFirstLevel();
             player.loadLevelData(levelManager.getCurrentLevel().getLevelData());
             enemyManager.spawnForLevel(levelManager.getCurrentLevel());
+            spikeManager.spawnForLevel(levelManager.getCurrentLevel());
             setPlayerLeftStart();
             GameState.state = GameState.MENU;
         }
@@ -114,11 +128,11 @@ public class Playing extends State implements StateMethods{
 
     @Override
     public void draw(Graphics g) {
-        levelManager.draw(g);
+        levelManager.draw(g);  // backgrounds + tiles
+        spikeManager.draw(g);  // draw spikes above tiles
         player.render(g);
         enemyManager.draw(g);
 
-        // Draw gold HUD on top-left (draw before pause overlay so overlay can cover it if needed)
         goldUI.draw(g, gold);
 
         if(paused){

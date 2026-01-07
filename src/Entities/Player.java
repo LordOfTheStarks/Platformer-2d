@@ -18,44 +18,49 @@ public class Player extends Entity{
     private int currentAction = RUNNING;
     private boolean moving = false,attacking = false, mirror = false;
     private boolean left,right,jump,inAir = false;
+
+    // Jump/physics
     private float playerSpeed = Game.SCALE;
     private int[][] levelData;
-    //variables used for jumping and gravity
     private float offsetX = 21* Game.SCALE , offsetY = 4*Game.SCALE;
     private float airSpeed = 0;
     private float gravity = 0.04f * Game.SCALE;
     private float jumpSpeed = -2.25f * Game.SCALE;
     private float xSpeed;
 
+    // NEW: double jump support
+    private int jumpsDone = 0;
+    private int maxJumps = 2; // ground jump + 1 mid-air jump
+
     public Player(float x, float y, int w,int h) {
         super(x, y, w, h);
         loadAnimations();
         initHitBox(x,y,(int)(20*Game.SCALE),(int)(40*Game.SCALE));
-
-
     }
+
     public void update(){
         updatePos();
         updateAnimationTick();
         setAnimation();
     }
-    public void render(Graphics g){
-            g.drawImage(animations.get(currentAction)[index], (int)hitBox.x - (int)offsetX, (int)(hitBox.y) - (int)offsetY, width, height, null);
-            drawHitBox(g);
-    }
-    private void loadAnimations() {
-            BufferedImage img1 = LoadSave.getAtlas(LoadSave.PLAYER_ATLAS1);
-            BufferedImage img2 = LoadSave.getAtlas(LoadSave.PLAYER_ATLAS2);
 
-        //code for idle images
+    public void render(Graphics g){
+        g.drawImage(animations.get(currentAction)[index], (int)hitBox.x - (int)offsetX, (int)(hitBox.y) - (int)offsetY, width, height, null);
+        // drawHitBox(g);
+    }
+
+    private void loadAnimations() {
+        BufferedImage img1 = LoadSave.getAtlas(LoadSave.PLAYER_ATLAS1);
+        BufferedImage img2 = LoadSave.getAtlas(LoadSave.PLAYER_ATLAS2);
+
+        // idle
         BufferedImage[] idle = new BufferedImage[4];
         for(int i =0;i<idle.length;i++){
             idle[i] = img1.getSubimage(i*50,0,50,37);
         }
-
         animations.add(0,idle);
 
-        //running
+        // running
         BufferedImage[] running = new BufferedImage[8];
         int runIndex = 0;
         for(int i =0;i<5;i++){
@@ -68,14 +73,14 @@ public class Player extends Entity{
         }
         animations.add(1,running);
 
-        //code for attack
+        // attack
         BufferedImage[] attack = new BufferedImage[7];
         for(int i =0;i<7;i++){
             attack[i] = img2.getSubimage(i*50,0,50,37);
         }
         animations.add(2,attack);
 
-        //code for hurt images
+        // hurt
         BufferedImage[] hurt = new BufferedImage[12];
         hurt[0] = img2.getSubimage(4*50,4*37,50,37);
         hurt[1] = img2.getSubimage(5*50,4*37,50,37);
@@ -91,7 +96,7 @@ public class Player extends Entity{
         hurt[11] = img2.getSubimage(3*50,6*37,50,37);
         animations.add(3,hurt);
 
-        //animation for dying
+        // dying
         BufferedImage[] dying = new BufferedImage[8];
         dying[0] = img2.getSubimage(4*50,4*37,50,37);
         dying[1] = img2.getSubimage(5*50,4*37,50,37);
@@ -103,7 +108,7 @@ public class Player extends Entity{
         dying[7] = img2.getSubimage(5*50,5*37,50,37);
         animations.add(4,dying);
 
-        //animation for jumping
+        // jump
         BufferedImage[] jump = new BufferedImage[4];
         jump[0] = img1.getSubimage(3*50,1*37,50,37);
         jump[1] = img1.getSubimage(4*50,1*37,50,37);
@@ -111,13 +116,13 @@ public class Player extends Entity{
         jump[3] = img1.getSubimage(3*50,2*37,50,37);
         animations.add(5,jump);
 
-        //animation for dying
+        // fall
         BufferedImage[] fall = new BufferedImage[2];
         fall[0] = img1.getSubimage(1*50,3*37,50,37);
         fall[1] = img1.getSubimage(2*50,3*37,50,37);
         animations.add(6,fall);
 
-        //code for mirror animations
+        // mirrors
         ArrayList<BufferedImage[]> mirroredAnimations = new ArrayList<>();
         for (BufferedImage[] animation : animations) {
             BufferedImage[] mirroredFrames = new BufferedImage[animation.length];
@@ -127,9 +132,8 @@ public class Player extends Entity{
             mirroredAnimations.add(mirroredFrames);
         }
         animations.addAll(mirroredAnimations);
-
     }
-    //mirror image method
+
     private BufferedImage flipImage(BufferedImage image) {
         BufferedImage flippedImage = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_ARGB);
         AffineTransform transform = new AffineTransform();
@@ -144,6 +148,9 @@ public class Player extends Entity{
         this.levelData = levelData;
         if(!IsOnFloor(hitBox,levelData)){
             inAir = true;
+        } else {
+            // On ground at spawn, reset jump counter
+            jumpsDone = 0;
         }
     }
 
@@ -156,48 +163,30 @@ public class Player extends Entity{
                 index = 0;
                 attacking = false;
             }
-
         }
     }
+
     private void setAnimation(){
         int start = currentAction;
         if(moving){
-            if(mirror) {
-                currentAction = RUNNING_MIRROR;
-            }else{
-                currentAction = RUNNING;
-            }
-        }
-        else{
-            if(mirror) {
-                currentAction = IDLE_MIRROR;
-            }else{
-                currentAction = IDLE;
-            }
+            if(mirror) currentAction = RUNNING_MIRROR;
+            else currentAction = RUNNING;
+        } else{
+            if(mirror) currentAction = IDLE_MIRROR;
+            else currentAction = IDLE;
         }
         if(inAir){
             if(airSpeed > 0){
-                if(mirror) {
-                    currentAction = FALL_MIRROR;
-                }else{
-                    currentAction = FALL;
-                }
-            }
-            else{
-                if(mirror) {
-                    currentAction = JUMP_MIRROR;
-                }else{
-                    currentAction = JUMP;
-                }
+                if(mirror) currentAction = FALL_MIRROR;
+                else currentAction = FALL;
+            } else{
+                if(mirror) currentAction = JUMP_MIRROR;
+                else currentAction = JUMP;
             }
         }
-
         if(attacking){
-            if(mirror) {
-                currentAction = ATTACK_MIRROR;
-            }else{
-                currentAction = ATTACK;
-            }
+            if(mirror) currentAction = ATTACK_MIRROR;
+            else currentAction = ATTACK;
         }
         if(start != currentAction) {
             tick = 0;
@@ -206,52 +195,63 @@ public class Player extends Entity{
     }
 
     private void updatePos(){
-          moving = false;
-          if(jump)
-              jump();
+        moving = false;
 
-          if(!left && !right && !inAir)
-              return;
+        // Handle jump requests
+        if(jump) {
+            tryJump();
+        }
 
-          xSpeed = 0;
-
-          if(left) {
-              mirror = true;
-              xSpeed -= playerSpeed;
-          }
-          if(right) {
-              mirror = false;
-              xSpeed += playerSpeed;
-          }
-
-          if(!inAir){
-              if(!IsOnFloor(hitBox,levelData)){
-                  inAir = true;
-              }
-          }
-          if(inAir) {
-                  airSpeed += gravity;
-          }
-          updatePosition(xSpeed);
-          moving = true;
-    }
-
-    private void jump() {
-        if(inAir)
+        if(!left && !right && !inAir)
             return;
 
-        inAir = true;
-        airSpeed = jumpSpeed;
+        xSpeed = 0;
+
+        if(left) {
+            mirror = true;
+            xSpeed -= playerSpeed;
+        }
+        if(right) {
+            mirror = false;
+            xSpeed += playerSpeed;
+        }
+
+        if(!inAir){
+            if(!IsOnFloor(hitBox,levelData)){
+                inAir = true;
+            } else {
+                // firmly on ground
+                jumpsDone = 0;
+            }
+        }
+
+        if(inAir) {
+            airSpeed += gravity;
+        }
+
+        updatePosition(xSpeed);
+        moving = true;
+    }
+
+    // NEW: attempt a jump if we have jumps left; consume the input so it triggers once per press
+    private void tryJump() {
+        if (jumpsDone < maxJumps) {
+            inAir = true;
+            airSpeed = jumpSpeed;
+            jumpsDone++;
+        }
+        // consume the jump request to prevent continuous retrigger while key is held
+        jump = false;
     }
 
     private void updatePosition(float xSpeed){
-        //for x position
+        // X axis
         if(CanMoveHere(hitBox.x+xSpeed, hitBox.y-1, hitBox.width, hitBox.height,levelData)) {
             hitBox.x += xSpeed;
         }else{
             hitBox.x = XPosNextToWall(hitBox,xSpeed);
         }
-        //for y position
+        // Y axis
         if(CanMoveHere(hitBox.x, hitBox.y+airSpeed, hitBox.width, hitBox.height,levelData)) {
             hitBox.y += airSpeed;
         }else{
@@ -260,14 +260,13 @@ public class Player extends Entity{
             }else if(airSpeed > 0){
                 inAir = false;
                 moving = false;
+                // Just landed on the ground; reset jumps
+                jumpsDone = 0;
             }
-
         }
-
     }
 
-
-// boolean setters
+    // boolean setters
     public void setAttacking(boolean attacking){
         this.attacking = attacking;
     }
@@ -280,7 +279,6 @@ public class Player extends Entity{
     public void setJump(boolean jump) {
         this.jump = jump;
     }
-
 
     public void resetBooleans() {
         setRight(false);

@@ -30,6 +30,9 @@ public class LoadSave {
     // NEW: Coin animation sprite sheet (9 frames, 20x20 each; total 180x20)
     public static String COIN_SHEET = "/coin2_20x20.png";
 
+    // NEW: spikes atlas (64x16, 4 variants of 16x16)
+    public static String SPIKES = "/spikes-1.png";
+
     public static BufferedImage getAtlas(String fileName){
         BufferedImage img = null;
         InputStream is = LoadSave.class.getResourceAsStream(fileName);
