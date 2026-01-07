@@ -83,6 +83,8 @@ public class PauseOverlay {
         int sliderCenterX = (int)((pbgX/1.1) + (pbgW / 2));
         int spacing = (int)(URM_SIZE * 1.2);
 
+
+        //testing
         playButton = new URMButton(sliderCenterX - spacing, rowY_URM, 0); // play/continue
         menuButton = new URMButton(sliderCenterX, rowY_URM, 1);          // main menu
         quitButton = new URMButton(sliderCenterX + spacing, rowY_URM, 2); // quit
