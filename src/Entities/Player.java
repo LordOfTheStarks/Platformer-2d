@@ -19,7 +19,7 @@ public class Player extends Entity{
     private boolean moving = false,attacking = false, mirror = false;
     private boolean left,right,jump,inAir = false;
 
-    // Jump/physics
+    // Physics
     private float playerSpeed = Game.SCALE;
     private int[][] levelData;
     private float offsetX = 21* Game.SCALE , offsetY = 4*Game.SCALE;
@@ -28,9 +28,13 @@ public class Player extends Entity{
     private float jumpSpeed = -2.25f * Game.SCALE;
     private float xSpeed;
 
-    // NEW: double jump support
+    // Double jump
     private int jumpsDone = 0;
-    private int maxJumps = 2; // ground jump + 1 mid-air jump
+    private int maxJumps = 2;
+
+    // NEW: Hearts-based health
+    private int maxHearts = 3;
+    private int hearts    = 3;
 
     public Player(float x, float y, int w,int h) {
         super(x, y, w, h);
@@ -149,7 +153,6 @@ public class Player extends Entity{
         if(!IsOnFloor(hitBox,levelData)){
             inAir = true;
         } else {
-            // On ground at spawn, reset jump counter
             jumpsDone = 0;
         }
     }
@@ -197,7 +200,6 @@ public class Player extends Entity{
     private void updatePos(){
         moving = false;
 
-        // Handle jump requests
         if(jump) {
             tryJump();
         }
@@ -220,7 +222,6 @@ public class Player extends Entity{
             if(!IsOnFloor(hitBox,levelData)){
                 inAir = true;
             } else {
-                // firmly on ground
                 jumpsDone = 0;
             }
         }
@@ -233,25 +234,21 @@ public class Player extends Entity{
         moving = true;
     }
 
-    // NEW: attempt a jump if we have jumps left; consume the input so it triggers once per press
     private void tryJump() {
         if (jumpsDone < maxJumps) {
             inAir = true;
             airSpeed = jumpSpeed;
             jumpsDone++;
         }
-        // consume the jump request to prevent continuous retrigger while key is held
         jump = false;
     }
 
     private void updatePosition(float xSpeed){
-        // X axis
         if(CanMoveHere(hitBox.x+xSpeed, hitBox.y-1, hitBox.width, hitBox.height,levelData)) {
             hitBox.x += xSpeed;
         }else{
             hitBox.x = XPosNextToWall(hitBox,xSpeed);
         }
-        // Y axis
         if(CanMoveHere(hitBox.x, hitBox.y+airSpeed, hitBox.width, hitBox.height,levelData)) {
             hitBox.y += airSpeed;
         }else{
@@ -260,10 +257,24 @@ public class Player extends Entity{
             }else if(airSpeed > 0){
                 inAir = false;
                 moving = false;
-                // Just landed on the ground; reset jumps
                 jumpsDone = 0;
             }
         }
+    }
+
+    // Hearts API
+    public int getHearts() { return hearts; }
+    public int getMaxHearts() { return maxHearts; }
+    public void takeHeartDamage(int heartsToLose) {
+        if (heartsToLose <= 0) return;
+        hearts = Math.max(0, hearts - heartsToLose);
+    }
+    public void healHearts(int heartsToAdd) {
+        if (heartsToAdd <= 0) return;
+        hearts = Math.min(maxHearts, hearts + heartsToAdd);
+    }
+    public void resetHeartsToFull() {
+        hearts = maxHearts;
     }
 
     // boolean setters

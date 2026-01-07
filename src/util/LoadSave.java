@@ -21,17 +21,17 @@ public class LoadSave {
     public static String URM_BUTTONS = "/urm_buttons.png";
     public static String VOLUME_BUTTONS = "/volume_buttons.png";
 
-    // Layered backgrounds (if you already added these, keep them)
     public static String MAIN_BG_0 = "/Mainbg_0.png";
     public static String MAIN_BG_1 = "/Mainbg_1.png";
     public static String GAME_BG_0 = "/Background_0.png";
     public static String GAME_BG_1 = "/Background_1.png";
 
-    // NEW: Coin animation sprite sheet (9 frames, 20x20 each; total 180x20)
     public static String COIN_SHEET = "/coin2_20x20.png";
-
-    // NEW: spikes atlas (64x16, 4 variants of 16x16)
     public static String SPIKES = "/spikes-1.png";
+
+    // Hearts
+    public static String HEART_EMPTY      = "/heart2-empty.png";     // 16x16
+    public static String HEART_FULL_SHEET = "/heart2-shine.png";     // 96x16, 6 frames each 16x16
 
     public static BufferedImage getAtlas(String fileName){
         BufferedImage img = null;

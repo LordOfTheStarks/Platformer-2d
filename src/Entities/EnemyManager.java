@@ -1,9 +1,7 @@
 package Entities;
 
-import Main.Game;
-import levels.Level;
-
 import java.awt.*;
+import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -12,33 +10,30 @@ public class EnemyManager {
 
     public EnemyManager() { }
 
-    public void spawnForLevel(Level level) {
+    public void spawnForLevel(levels.Level level) {
         enemies.clear();
 
         int[][] data = level.getLevelData();
 
-        // Spawn enemies at a few x positions, placed on the ground using tile data
-        int h = (int)(32 * Game.SCALE);
-        int w = (int)(24 * Game.SCALE);
+        int h = (int)(32 * Main.Game.SCALE);
+        int w = (int)(24 * Main.Game.SCALE);
 
-        int[] xTiles = {5, 12, 20}; // tile columns to place enemies at
+        int[] xTiles = {5, 12, 20};
         for (int xt : xTiles) {
             int yPixel = groundYPixel(data, xt);
-            enemies.add(new Enemy(xt * Game.TILES_SIZE, yPixel - h, w, h, data));
+            enemies.add(new Enemy(xt * Main.Game.TILES_SIZE, yPixel - h, w, h, data));
         }
     }
 
     private int groundYPixel(int[][] data, int xTile) {
-        // Find first solid tile from bottom up at xTile; place enemy on top of it.
-        for (int y = Game.TILES_HEIGHT - 1; y >= 0; y--) {
+        for (int y = Main.Game.TILES_HEIGHT - 1; y >= 0; y--) {
             int idx = data[y][xTile];
-            boolean solid = (idx != 11); // 11 is air in your Helpmethods
+            boolean solid = (idx != 11);
             if (solid) {
-                return y * Game.TILES_SIZE;
+                return y * Main.Game.TILES_SIZE;
             }
         }
-        // If no ground found, default to a reasonable mid-height
-        return (int)(Game.GAME_HEIGHT * 0.5f);
+        return (int)(Main.Game.GAME_HEIGHT * 0.5f);
     }
 
     public void update() {
@@ -47,5 +42,16 @@ public class EnemyManager {
 
     public void draw(Graphics g) {
         for (Enemy e : enemies) e.render(g);
+    }
+
+    // NEW: simple contact check to damage player
+    public boolean collidesWithPlayer(Rectangle2D.Float playerHB) {
+        Rectangle playerRect = new Rectangle((int)playerHB.x, (int)playerHB.y, (int)playerHB.width, (int)playerHB.height);
+        for (Enemy e : enemies) {
+            Rectangle2D.Float hb = e.getHitBox();
+            Rectangle enemyRect = new Rectangle((int)hb.x, (int)hb.y, (int)hb.width, (int)hb.height);
+            if (playerRect.intersects(enemyRect)) return true;
+        }
+        return false;
     }
 }

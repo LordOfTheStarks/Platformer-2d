@@ -12,7 +12,7 @@ Design Levels properly
 
 Change the character Sprite
 
-Add Health Bar or hearts <--
+Add Health Bar or hearts <-- done Boray
 
 Add Potion for healing <--
 
@@ -27,7 +27,7 @@ Make Levels bigger or side scroll
 
 
 
-Assets(https://rvros.itch.io/animated-pixel-hero, https://pixelfrog-assets.itch.io/treasure-hunters, https://totuslotus.itch.io/pixel-coins)
+Assets(https://rvros.itch.io/animated-pixel-hero, https://pixelfrog-assets.itch.io/treasure-hunters, https://totuslotus.itch.io/pixel-coins, https://totuslotus.itch.io/small-platformer-pack)
 
 
 

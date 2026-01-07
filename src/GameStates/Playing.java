@@ -6,6 +6,7 @@ import Main.Game;
 import levels.LevelManager;
 import levels.SpikeManager;
 import ui.GoldUI;
+import ui.HeartsUI;
 
 import java.awt.*;
 import java.awt.event.KeyEvent;
@@ -24,6 +25,11 @@ public class Playing extends State implements StateMethods{
 
     private int gold = 0;
     private final GoldUI goldUI = new GoldUI();
+    private final HeartsUI heartsUI = new HeartsUI();
+
+    // Enemy contact damage cooldown
+    private long lastDamageMs = 0;
+    private final long damageCooldownMs = 600;
 
     public Playing(Game game) {
         super(game);
@@ -64,22 +70,44 @@ public class Playing extends State implements StateMethods{
         player.update();
         enemyManager.update();
         spikeManagerUpdateAndCheck();
+        enemyContactDamageCheck();
         pauseOverlay.update();
+
         goldUI.update();
+        heartsUI.update();
 
         handleBorderTransitions();
         handlePitDeath();
     }
 
+    private void enemyContactDamageCheck() {
+        long now = System.currentTimeMillis();
+        if (enemyManager.collidesWithPlayer(player.getHitBox())) {
+            if (now - lastDamageMs > damageCooldownMs) {
+                player.takeHeartDamage(1);
+                lastDamageMs = now;
+                if (player.getHearts() <= 0) {
+                    // Game over -> return to menu and reset to first level + hearts full
+                    levelManager.resetToFirstLevel();
+                    player.loadLevelData(levelManager.getCurrentLevel().getLevelData());
+                    enemyManager.spawnForLevel(levelManager.getCurrentLevel());
+                    spikeManager.spawnForLevel(levelManager.getCurrentLevel());
+                    setPlayerLeftStart();
+                    player.resetHeartsToFull();
+                    GameState.state = GameState.MENU;
+                }
+            }
+        }
+    }
+
     private void spikeManagerUpdateAndCheck() {
-        // Currently no spike update logic; just collision check
         if (spikeManager.isPlayerOnSpike(player.getHitBox())) {
-            // Game over -> return to menu and reset to first level
             levelManager.resetToFirstLevel();
             player.loadLevelData(levelManager.getCurrentLevel().getLevelData());
             enemyManager.spawnForLevel(levelManager.getCurrentLevel());
             spikeManager.spawnForLevel(levelManager.getCurrentLevel());
             setPlayerLeftStart();
+            player.resetHeartsToFull();
             GameState.state = GameState.MENU;
         }
     }
@@ -106,6 +134,7 @@ public class Playing extends State implements StateMethods{
             enemyManager.spawnForLevel(levelManager.getCurrentLevel());
             spikeManager.spawnForLevel(levelManager.getCurrentLevel());
             setPlayerLeftStart();
+            player.resetHeartsToFull();
             GameState.state = GameState.MENU;
         }
     }
@@ -128,12 +157,13 @@ public class Playing extends State implements StateMethods{
 
     @Override
     public void draw(Graphics g) {
-        levelManager.draw(g);  // backgrounds + tiles
-        spikeManager.draw(g);  // draw spikes above tiles
+        levelManager.draw(g);
+        spikeManager.draw(g);
         player.render(g);
         enemyManager.draw(g);
 
         goldUI.draw(g, gold);
+        heartsUI.draw(g, player.getHearts(), player.getMaxHearts());
 
         if(paused){
             pauseOverlay.draw(g);
