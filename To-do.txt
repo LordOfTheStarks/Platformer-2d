@@ -16,11 +16,11 @@ Add Health Bar or hearts <--
 
 Add Potion for healing <--
 
-Add score <-- done
+Add score <-- done Boray
 
-Add spikes/death when character falls to a pit <--
+Add spikes/death when character falls to a pit <-- done Boray
 
-Add double jump <-- done
+Add double jump <-- done Boray
 
 Make Levels bigger or side scroll
 
