@@ -4,6 +4,7 @@ import Entities.EnemyManager;
 import Entities.Player;
 import Main.Game;
 import levels.LevelManager;
+import ui.GoldUI;
 
 import java.awt.*;
 import java.awt.event.KeyEvent;
@@ -18,6 +19,10 @@ public class Playing extends State implements StateMethods{
     private EnemyManager enemyManager;
     private ui.PauseOverlay pauseOverlay;
     private boolean paused;
+
+    // NEW: Gold system
+    private int gold = 0;
+    private final GoldUI goldUI = new GoldUI();
 
     public Playing(Game game) {
         super(game);
@@ -49,6 +54,11 @@ public class Playing extends State implements StateMethods{
         this.paused = paused;
     }
 
+    // Gold API (for future: coins/enemy kills/shop)
+    public int getGold() { return gold; }
+    public void addGold(int amount) { if (amount > 0) gold += amount; }
+    public boolean spendGold(int amount) { if (amount <= gold) { gold -= amount; return true; } return false; }
+
     @Override
     public void update() {
         levelManager.update();
@@ -56,20 +66,19 @@ public class Playing extends State implements StateMethods{
         enemyManager.update();
         pauseOverlay.update();
 
+        goldUI.update();
+
         handleBorderTransitions();
         handlePitDeath();
     }
 
     private void handleBorderTransitions() {
-        // Trigger near right border to avoid boundary solidity blocking exact GAME_WIDTH
         int threshold = GAME_WIDTH - (TILES_SIZE / 4);
         if (playerRight() >= threshold) {
             if (!levelManager.isLastLevel()) {
                 levelManager.nextLevel();
-                // reload data references
                 player.loadLevelData(levelManager.getCurrentLevel().getLevelData());
                 enemyManager.spawnForLevel(levelManager.getCurrentLevel());
-                // place player at left start
                 setPlayerLeftStart();
             } else {
                 GameState.state = GameState.MENU;
@@ -85,11 +94,6 @@ public class Playing extends State implements StateMethods{
             setPlayerLeftStart();
             GameState.state = GameState.MENU;
         }
-    }
-
-    private int playerLeft() {
-        Rectangle2D.Float hb = player.getHitBox();
-        return (int) hb.x;
     }
 
     private int playerRight() {
@@ -113,6 +117,10 @@ public class Playing extends State implements StateMethods{
         levelManager.draw(g);
         player.render(g);
         enemyManager.draw(g);
+
+        // Draw gold HUD on top-left (draw before pause overlay so overlay can cover it if needed)
+        goldUI.draw(g, gold);
+
         if(paused){
             pauseOverlay.draw(g);
         }

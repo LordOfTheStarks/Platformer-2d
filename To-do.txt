@@ -12,22 +12,22 @@ Design Levels properly
 
 Change the character Sprite
 
-Add Health Bar or hearts
+Add Health Bar or hearts <--
 
-Add Potion for healing
+Add Potion for healing <--
 
-Add score
+Add score <-- done
 
-Add spikes/death when character falls to a pit
+Add spikes/death when character falls to a pit <--
 
-Add double jump
+Add double jump <-- done
 
 Make Levels bigger or side scroll
 
 
 
 
-Assets(https://rvros.itch.io/animated-pixel-hero, https://pixelfrog-assets.itch.io/treasure-hunters)
+Assets(https://rvros.itch.io/animated-pixel-hero, https://pixelfrog-assets.itch.io/treasure-hunters, https://totuslotus.itch.io/pixel-coins)
 
 
 
