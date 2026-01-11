@@ -7,7 +7,6 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
-
 public class LoadSave {
     public static String PLAYER_ATLAS1 = "/adventurer_sheet.png";
     public static String PLAYER_ATLAS2 = "/adventurer_sheet2.png";
@@ -28,6 +27,10 @@ public class LoadSave {
 
     public static String COIN_SHEET = "/coin2_20x20.png";
     public static String SPIKES = "/spikes-1.png";
+
+    // Enemy sprites (add /enemy1.png and /enemy2.png to your resources)
+    public static String ENEMY_1 = "/enemy1.png";
+    public static String ENEMY_2 = "/enemy2.png";
 
     // Hearts
     public static String HEART_EMPTY      = "/heart2-empty.png";     // 16x16

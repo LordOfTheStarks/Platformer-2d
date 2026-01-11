@@ -4,7 +4,6 @@ import java.awt.*;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.List;
-
 public class EnemyManager {
     private final List<Enemy> enemies = new ArrayList<>();
 
@@ -15,13 +14,16 @@ public class EnemyManager {
 
         int[][] data = level.getLevelData();
 
-        int h = (int)(32 * Main.Game.SCALE);
-        int w = (int)(24 * Main.Game.SCALE);
+        // Match player's drawn size so enemies visually match player
+        int h = (int)(46.25f * Main.Game.SCALE);
+        int w = (int)(62.5f * Main.Game.SCALE);
 
         int[] xTiles = {5, 12, 20};
-        for (int xt : xTiles) {
+        for (int i = 0; i < xTiles.length; i++) {
+            int xt = xTiles[i];
             int yPixel = groundYPixel(data, xt);
-            enemies.add(new Enemy(xt * Main.Game.TILES_SIZE, yPixel - h, w, h, data));
+            int variant = i % 2; // alternate between enemy1 and enemy2
+            enemies.add(new Enemy(xt * Main.Game.TILES_SIZE, yPixel - h, w, h, variant, data));
         }
     }
 
@@ -44,7 +46,7 @@ public class EnemyManager {
         for (Enemy e : enemies) e.render(g);
     }
 
-    // NEW: simple contact check to damage player
+    // simple contact check to damage player
     public boolean collidesWithPlayer(Rectangle2D.Float playerHB) {
         Rectangle playerRect = new Rectangle((int)playerHB.x, (int)playerHB.y, (int)playerHB.width, (int)playerHB.height);
         for (Enemy e : enemies) {

@@ -53,6 +53,10 @@ public class Player extends Entity{
         // drawHitBox(g);
     }
 
+    public boolean isInAir() {
+        return inAir;
+    }
+
     private void loadAnimations() {
         BufferedImage img1 = LoadSave.getAtlas(LoadSave.PLAYER_ATLAS1);
         BufferedImage img2 = LoadSave.getAtlas(LoadSave.PLAYER_ATLAS2);
@@ -231,7 +235,9 @@ public class Player extends Entity{
         }
 
         updatePosition(xSpeed);
-        moving = true;
+
+        // Only mark moving when there's horizontal speed or when in-air (so animations/states match reality)
+        moving = (xSpeed != 0) || inAir;
     }
 
     private void tryJump() {

@@ -10,9 +10,11 @@ public class Spike {
     private final int y;
     private final int type; // 0..3
 
-    // Render size (scaled from 16x16)
-    public static final int W = (int)(16 * Game.SCALE);
-    public static final int H = (int)(16 * Game.SCALE);
+    // Render size — use a consistent size relative to tiles so all spikes share the same height.
+    // This makes spikes look uniform even if the source sprite variants differ a little.
+    public static final int SIZE = (int)(Game.TILES_SIZE * 0.5f); // half a tile high
+    public static final int W = SIZE;
+    public static final int H = SIZE;
 
     public Spike(int x, int y, int type) {
         this.x = x;

@@ -84,6 +84,10 @@ public class LevelManager {
         return levels.get(currentLevelIdx);
     }
 
+    public int getCurrentLevelIndex() {
+        return currentLevelIdx;
+    }
+
     public void nextLevel() {
         if (currentLevelIdx < levels.size() - 1) {
             currentLevelIdx++;
