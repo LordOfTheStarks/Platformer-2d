@@ -1,0 +1,10 @@
+Repo is updated 
+Now, I want to add some critical stuff. 
+1. I want to change the character sprite, there are a lot of sheets in this sprite zip but i will only use a few:
+
+- _Attack.png for normal attacks(1 click only) (480x80 with 4 states)
+- _AttackCombo.png for 2+ mouse clicks (1200x80 with 12 states)
+- _Fall.png for when falling (360x80 with 3 states)
+- _Idle.png for staying still (1200x80 with 12 states)
+- _Jump.png for jumping (360x80 with 3 states)
+- _Run.png for running/moving (1200x80 with 12 states)

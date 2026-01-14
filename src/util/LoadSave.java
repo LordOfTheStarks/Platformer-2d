@@ -36,6 +36,15 @@ public class LoadSave {
     public static String HEART_EMPTY      = "/heart2-empty.png";     // 16x16
     public static String HEART_FULL_SHEET = "/heart2-shine.png";     // 96x16, 6 frames each 16x16
 
+    // Potions
+    public static String POTION_1 = "/Red Potion/01.png";
+    public static String POTION_2 = "/Red Potion/02.png";
+    public static String POTION_3 = "/Red Potion/03.png";
+    public static String POTION_4 = "/Red Potion/04.png";
+    public static String POTION_5 = "/Red Potion/05.png";
+    public static String POTION_6 = "/Red Potion/06.png";
+    public static String POTION_7 = "/Red Potion/07.png";
+
     public static BufferedImage getAtlas(String fileName){
         BufferedImage img = null;
         InputStream is = LoadSave.class.getResourceAsStream(fileName);

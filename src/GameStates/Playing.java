@@ -4,6 +4,7 @@ import Entities.EnemyManager;
 import Entities.Player;
 import Main.Game;
 import levels.LevelManager;
+import levels.PotionManager;
 import levels.SpikeManager;
 import ui.GoldUI;
 import ui.HeartsUI;
@@ -23,6 +24,7 @@ public class Playing extends State implements StateMethods {
     private EnemyManager enemyManager;
     private SpikeManager spikeManager;
     private CoinManager coinManager;
+    private PotionManager potionManager;
     private PauseOverlay pauseOverlay;
     private DeathOverlay deathOverlay;
     private boolean paused;
@@ -63,6 +65,9 @@ public class Playing extends State implements StateMethods {
         coinManager = new CoinManager();
         // ensure coins do not spawn on spikes
         coinManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
+
+        potionManager = new PotionManager();
+        potionManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
 
         pauseOverlay = new PauseOverlay(game);
         deathOverlay = new DeathOverlay(game);
@@ -123,6 +128,11 @@ public class Playing extends State implements StateMethods {
         coinManager.update();
         int collected = coinManager.collectIfPlayerTouches(player.getHitBox());
         if (collected > 0) addGold(collected);
+
+        potionManager.update();
+        if (potionManager.consumeIfPlayerTouches(player.getHitBox())) {
+            player.healHearts(1);
+        }
 
         goldUI.update();
         heartsUI.update();
@@ -298,7 +308,7 @@ public class Playing extends State implements StateMethods {
     public void draw(Graphics g) {
         levelManager.draw(g);
         spikeManager.draw(g);
-        // draw coins under player (so player appears above)
+        potionManager.draw(g);
         coinManager.draw(g);
         player.render(g);
         enemyManager.draw(g);
