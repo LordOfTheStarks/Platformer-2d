@@ -26,7 +26,7 @@ public class PotionManager {
     }
 
     private void loadFrames() {
-        // 7 separate PNGs
+        // 7 separate PNGs: potion_01.png ... potion_07.png
         frames = new BufferedImage[7];
         frames[0] = LoadSave.getAtlas(LoadSave.POTION_1);
         frames[1] = LoadSave.getAtlas(LoadSave.POTION_2);
@@ -42,46 +42,63 @@ public class PotionManager {
     }
 
     /**
-     * Spawn exactly one potion in the given level.
-     * Picks a random x tile column, places the potion on the first solid tile's top (ground or platform).
-     * Avoids spikes by checking SpikeManager bounds.
+     * Spawn up to 2 potions in the given level.
+     * - Place on first solid tile's top (ground or platform)
+     * - Avoid spikes and coins
+     * - Avoid stacking potions too close to each other
      */
-    public void spawnForLevel(Level level, SpikeManager spikeManager) {
+    public void spawnForLevel(Level level, SpikeManager spikeManager, CoinManager coinManager) {
         potions.clear();
         int[][] data = level.getLevelData();
         if (data == null) return;
 
-        int attempts = Game.TILES_WIDTH * 4;
-        for (int i = 0; i < attempts && potions.size() < 1; i++) {
+        int maxPotions = 2;
+        int attempts = Game.TILES_WIDTH * 8;
+
+        for (int i = 0; i < attempts && potions.size() < maxPotions; i++) {
             int xt = rnd.nextInt(Game.TILES_WIDTH);
             int groundYTile = findGroundYTile(data, xt);
             if (groundYTile == -1) continue;
 
-            // center horizontally on tile; sit on ground/platform top
             int px = xt * Game.TILES_SIZE + (Game.TILES_SIZE - Potion.W) / 2;
             int py = groundYTile * Game.TILES_SIZE - Potion.H - (int)(2 * Game.SCALE);
 
-            // Must be a valid position (not embedded in solid)
             if (!CanMoveHere(px, py, Potion.W, Potion.H, data)) continue;
 
-            // Avoid spikes overlap
-            Rectangle potionRect = new Rectangle(px, py, Potion.W, Potion.H);
+            Rectangle rect = new Rectangle(px, py, Potion.W, Potion.H);
+
+            // avoid spikes
             boolean overlapsSpike = false;
             if (spikeManager != null) {
                 for (Spike s : spikeManager.getSpikes()) {
-                    if (potionRect.intersects(s.getBounds())) {
-                        overlapsSpike = true;
-                        break;
-                    }
+                    if (rect.intersects(s.getBounds())) { overlapsSpike = true; break; }
                 }
             }
             if (overlapsSpike) continue;
+
+            // avoid coins
+            boolean overlapsCoin = false;
+            if (coinManager != null) {
+                for (Coin c : coinManager.getCoins()) {
+                    if (rect.intersects(c.getBounds())) { overlapsCoin = true; break; }
+                }
+            }
+            if (overlapsCoin) continue;
+
+            // avoid other potions (too close)
+            boolean tooClosePotion = false;
+            for (Potion p : potions) {
+                Rectangle r2 = p.getBounds();
+                if (Math.abs(r2.x - px) < Potion.W * 1.2f && Math.abs(r2.y - py) < Potion.H * 1.2f) {
+                    tooClosePotion = true; break;
+                }
+            }
+            if (tooClosePotion) continue;
 
             potions.add(new Potion(px, py));
         }
     }
 
-    // Find first solid tile from top (matches Helpmethods.isSolid heuristic where index != 11)
     private int findGroundYTile(int[][] data, int xTile) {
         for (int y = 0; y < Game.TILES_HEIGHT; y++) {
             int idx = data[y][xTile];
@@ -93,9 +110,6 @@ public class PotionManager {
         return -1;
     }
 
-    /**
-     * Checks player hitbox against the potion; removes if consumed and returns true.
-     */
     public boolean consumeIfPlayerTouches(Rectangle2D.Float playerHB) {
         if (potions.isEmpty()) return false;
         Rectangle playerRect = new Rectangle((int)playerHB.x, (int)playerHB.y, (int)playerHB.width, (int)playerHB.height);

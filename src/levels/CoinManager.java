@@ -9,6 +9,7 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.Collections;
 import static util.Helpmethods.*;
 
 public class CoinManager {
@@ -134,5 +135,9 @@ public class CoinManager {
 
     public void clearAll() {
         coins.clear();
+    }
+
+    public List<Coin> getCoins() {
+        return Collections.unmodifiableList(coins);
     }
 }

@@ -67,7 +67,7 @@ public class Playing extends State implements StateMethods {
         coinManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
 
         potionManager = new PotionManager();
-        potionManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
+        potionManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager, coinManager);
 
         pauseOverlay = new PauseOverlay(game);
         deathOverlay = new DeathOverlay(game);
@@ -173,6 +173,7 @@ public class Playing extends State implements StateMethods {
                 enemyManager.spawnForLevel(levelManager.getCurrentLevel());
                 spikeManager.spawnForLevel(levelManager.getCurrentLevel());
                 coinManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
+                potionManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager, coinManager);
                 setPlayerLeftStart();
             } else {
                 GameState.state = GameState.MENU;
@@ -291,6 +292,7 @@ public class Playing extends State implements StateMethods {
         enemyManager.spawnForLevel(levelManager.getCurrentLevel());
         spikeManager.spawnForLevel(levelManager.getCurrentLevel());
         coinManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
+        potionManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager, coinManager);
         setPlayerLeftStart();
         player.resetHeartsToFull();
         player.resetBooleans();
