@@ -11,8 +11,13 @@ import java.awt.image.AffineTransformOp;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+
 public class Enemy extends Entity {
     private int[][] levelData;
+
+    // Health system - 1 HP means dies in one hit
+    private int health = 1;
+    private boolean active = true;
 
     // movement expressed as continuous xSpeed (sub-pixel)
     private float xSpeed;
@@ -47,6 +52,23 @@ public class Enemy extends Entity {
 
         // start moving right by default
         this.xSpeed = baseSpeed;
+    }
+
+    // Health and active state methods
+    public boolean isActive() {
+        return active;
+    }
+
+    public void takeDamage(int damage) {
+        if (!active) return;
+        health -= damage;
+        if (health <= 0) {
+            active = false;
+        }
+    }
+
+    public Rectangle2D.Float getHitBox() {
+        return hitBox;
     }
 
     /**
@@ -153,6 +175,9 @@ public class Enemy extends Entity {
     }
 
     public void update() {
+        // Don't update dead enemies
+        if (!active) return;
+
         // Animate
         if (imagesAvailable && enemyFrames != null && variant < enemyFrames.length && enemyFrames[variant] != null) {
             animTick++;
@@ -186,17 +211,20 @@ public class Enemy extends Entity {
         }
     }
 
-    public void render(Graphics g) {
+    public void render(Graphics g, int xLevelOffset) {
+        // Don't draw dead enemies
+        if (!active) return;
+
         // If images aren't available draw fallback rectangle
         if (!imagesAvailable || enemyFrames == null) {
-            drawFallback(g);
+            drawFallback(g, xLevelOffset);
             return;
         }
 
         BufferedImage[] frames = variant < enemyFrames.length ? enemyFrames[variant] : null;
         BufferedImage[] framesFlipped = variant < enemyFramesFlipped.length ? enemyFramesFlipped[variant] : null;
         if (frames == null || frames.length == 0 || frames[0] == null) {
-            drawFallback(g);
+            drawFallback(g, xLevelOffset);
             return;
         }
 
@@ -204,7 +232,7 @@ public class Enemy extends Entity {
         BufferedImage srcImg = (xSpeed >= 0) ? frames[frameIdx] : (framesFlipped != null ? framesFlipped[frameIdx] : frames[frameIdx]);
 
         if (srcImg == null) {
-            drawFallback(g);
+            drawFallback(g, xLevelOffset);
             return;
         }
 
@@ -218,24 +246,24 @@ public class Enemy extends Entity {
         // Compute scale to fit the sprite inside the target box while preserving aspect ratio
         float scale = Math.min((float) targetW / srcW, (float) targetH / srcH);
         if (scale <= 0f) {
-            drawFallback(g);
+            drawFallback(g, xLevelOffset);
             return;
         }
 
         int drawW = Math.max(1, Math.round(srcW * scale));
         int drawH = Math.max(1, Math.round(srcH * scale));
 
-        // Bottom-align sprite to the enemy's hitbox bottom
-        int drawX = (int) hitBox.x + ((int)hitBox.width - drawW) / 2;
+        // Bottom-align sprite to the enemy's hitbox bottom, apply camera offset
+        int drawX = (int) hitBox.x + ((int)hitBox.width - drawW) / 2 - xLevelOffset;
         int drawY = (int) (hitBox.y + hitBox.height - drawH);
 
         g.drawImage(srcImg, drawX, drawY, drawW, drawH, null);
     }
 
-    private void drawFallback(Graphics g) {
+    private void drawFallback(Graphics g, int xLevelOffset) {
         // Visible debugging fallback: colored rectangle with "E" label so you can see enemies
         g.setColor(new Color(200, 40, 40));
-        int x = Math.max(0, (int) hitBox.x);
+        int x = Math.max(0, (int) hitBox.x - xLevelOffset);
         int y = Math.max(0, (int) hitBox.y);
         int w = Math.max(8, (int) hitBox.width);
         int h = Math.max(8, (int) hitBox.height);
@@ -250,6 +278,3 @@ public class Enemy extends Entity {
         g.drawString(s, tx, ty);
     }
 }
-
-
-
