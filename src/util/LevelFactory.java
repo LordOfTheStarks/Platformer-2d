@@ -113,9 +113,9 @@ public class LevelFactory {
             }
         }
 
-        // Peak section with narrow precision platforms
-        for (int x = 42; x <= 44; x++) l[H-11][x] = PLATFORM; // Very high
-        for (int x = 46; x <= 48; x++) l[H-10][x] = PLATFORM;
+        // Peak section with narrow precision platforms (adjusted to reachable height)
+        for (int x = 42; x <= 45; x++) l[H-10][x] = PLATFORM; // Challenging but reachable
+        for (int x = 46; x <= 48; x++) l[H-9][x] = PLATFORM;
         
         // Descent with wider platforms (reward for reaching top)
         for (int x = 50; x <= 54; x++) l[H-7][x] = PLATFORM;
@@ -216,8 +216,8 @@ public class LevelFactory {
         
         // Section 5: Final pit challenge
         for (int x = 48; x <= 50; x++) l[H-8][x] = PLATFORM; // High entry
-        for (int x = 51; x <= 52; x++) l[H-10][x] = PLATFORM; // Peak platform (hardest jump)
-        for (int x = 53; x <= 54; x++) l[H-7][x] = PLATFORM; // Exit
+        for (int x = 51; x <= 53; x++) l[H-10][x] = PLATFORM; // Peak platform (difficult but fair)
+        for (int x = 54; x <= 55; x++) l[H-7][x] = PLATFORM; // Exit
         
         // Section 6: Victory stretch with elevation
         for (int x = 57; x <= 61; x++) l[H-5][x] = PLATFORM;

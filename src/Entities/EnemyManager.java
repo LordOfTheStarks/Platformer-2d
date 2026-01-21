@@ -20,6 +20,7 @@ public class EnemyManager {
         int w = (int)(62.5f * Main.Game.SCALE);
 
         // Determine spawn positions based on level width and difficulty
+        // Ordered by level progression for clarity
         int[] xTiles;
         
         if (levelWidth <= 50) {
