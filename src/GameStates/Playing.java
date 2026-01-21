@@ -163,8 +163,8 @@ public class Playing extends State implements StateMethods {
         // Get level width
         int levelWidth = levelManager.getCurrentLevel().getLevelWidth() * TILES_SIZE;
         
-        // Clamp camera to level boundaries
-        int maxCameraX = levelWidth - GAME_WIDTH;
+        // Clamp camera to level boundaries (handle short levels)
+        int maxCameraX = Math.max(0, levelWidth - GAME_WIDTH);
         cameraOffsetX = Math.max(0, Math.min(desiredCameraX, maxCameraX));
     }
 
@@ -221,26 +221,27 @@ public class Playing extends State implements StateMethods {
             int centerX = (int) (hb.x + hb.width / 2);
             int xt = centerX / TILES_SIZE;
             int[][] data = levelManager.getCurrentLevel().getLevelData();
+            int levelWidth = levelManager.getCurrentLevel().getLevelWidth();
 
-            if (data != null && xt >= 0 && xt < Game.TILES_WIDTH) {
-                // Pit center derived from LevelFactory.level2 layout
-                int pitCenter = Game.TILES_WIDTH / 2;
-                int pitLeft = pitCenter - 2;
-                int pitRight = pitCenter + 2;
+            if (data != null && xt >= 0 && xt < levelWidth) {
+                // Pit center derived from LevelFactory.level2 layout (now at tile 30 for 60-tile level)
+                int pitCenter = 30;
+                int pitLeft = pitCenter - 3;
+                int pitRight = pitCenter + 3;
 
                 // Only consider when player's horizontal center is over the pit columns
                 if (xt >= pitLeft && xt <= pitRight) {
                     // Platform columns bridging the pit (per LevelFactory.level2)
-                    int leftPlatformStart = pitCenter - 4;
+                    int leftPlatformStart = pitCenter - 5;
                     int leftPlatformEnd = pitCenter - 1;
                     int rightPlatformStart = pitCenter + 1;
-                    int rightPlatformEnd = pitCenter + 4;
+                    int rightPlatformEnd = pitCenter + 5;
 
                     // Find the platform row by scanning those platform columns and
                     // taking the deepest topmost solid among them; that represents platform height.
                     int platformRow = Integer.MIN_VALUE;
                     for (int x = leftPlatformStart; x <= leftPlatformEnd; x++) {
-                        if (x < 0 || x >= Game.TILES_WIDTH) continue;
+                        if (x < 0 || x >= levelWidth) continue;
                         for (int y = 0; y < Game.TILES_HEIGHT; y++) {
                             if (data[y][x] != util.LevelFactory.AIR) {
                                 if (y > platformRow) platformRow = y;
@@ -249,7 +250,7 @@ public class Playing extends State implements StateMethods {
                         }
                     }
                     for (int x = rightPlatformStart; x <= rightPlatformEnd; x++) {
-                        if (x < 0 || x >= Game.TILES_WIDTH) continue;
+                        if (x < 0 || x >= levelWidth) continue;
                         for (int y = 0; y < Game.TILES_HEIGHT; y++) {
                             if (data[y][x] != util.LevelFactory.AIR) {
                                 if (y > platformRow) platformRow = y;

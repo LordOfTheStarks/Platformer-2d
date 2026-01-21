@@ -64,12 +64,11 @@ public class EnemyManager {
     public void checkPlayerAttackCollision(Rectangle2D.Float attackHitbox) {
         if (attackHitbox == null) return;
         
-        Rectangle attackRect = new Rectangle((int)attackHitbox.x, (int)attackHitbox.y, 
-                                            (int)attackHitbox.width, (int)attackHitbox.height);
+        // Direct float-based collision detection without creating Rectangle objects
         for (Enemy e : enemies) {
             Rectangle2D.Float hb = e.getHitBox();
-            Rectangle enemyRect = new Rectangle((int)hb.x, (int)hb.y, (int)hb.width, (int)hb.height);
-            if (attackRect.intersects(enemyRect)) {
+            // Check if rectangles intersect
+            if (attackHitbox.intersects(hb)) {
                 e.takeDamage(1);
             }
         }
