@@ -16,6 +16,7 @@ public class Player extends Entity{
     private static ArrayList<BufferedImage[]> animations = new ArrayList<>();
 
     private int tick,index,speed= 30;
+    private int attackSpeed = 15; // Faster animation speed for attacks
     private int currentAction = RUNNING;
     private boolean moving = false,attacking = false, mirror = false;
     private boolean left,right,jump,inAir = false;
@@ -166,7 +167,9 @@ public class Player extends Entity{
 
     private void updateAnimationTick() {
         tick++;
-        if (tick >= speed) {
+        // Use faster animation speed for attacks
+        int currentSpeed = (currentAction == ATTACK || currentAction == ATTACK_MIRROR) ? attackSpeed : speed;
+        if (tick >= currentSpeed) {
             tick = 0;
             index++;
             if (index >= animations.get(currentAction).length) {

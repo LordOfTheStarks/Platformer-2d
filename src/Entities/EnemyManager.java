@@ -91,25 +91,35 @@ public class EnemyManager {
     public void update() {
         for (Enemy e : enemies) e.update();
         
-        // Remove dead enemies
+        // Remove dead enemies (after death animation completes)
         enemies.removeIf(Enemy::isDead);
         
-        // Shoot projectiles periodically from random enemies
+        // Shoot projectiles periodically from random ALIVE enemies
         long now = System.currentTimeMillis();
         if (now - lastProjectileTime > projectileCooldown && !enemies.isEmpty()) {
-            // Pick a random enemy to shoot
-            int randomIndex = (int)(Math.random() * enemies.size());
-            Enemy shooter = enemies.get(randomIndex);
-            Rectangle2D.Float shooterHB = shooter.getHitBox();
+            // Filter to only alive (not dying) enemies
+            List<Enemy> aliveEnemies = new ArrayList<>();
+            for (Enemy e : enemies) {
+                if (!e.isDying()) {
+                    aliveEnemies.add(e);
+                }
+            }
             
-            // Create projectile moving away from enemy
-            float projectileX = shooterHB.x + shooterHB.width / 2;
-            float projectileY = shooterHB.y + shooterHB.height / 2;
-            float projectileSpeed = 2.0f * Main.Game.SCALE;
-            
-            // Shoot in a direction (could be toward player, but for simplicity shoot right for now)
-            projectiles.add(new Projectile(projectileX, projectileY, projectileSpeed));
-            lastProjectileTime = now;
+            if (!aliveEnemies.isEmpty()) {
+                // Pick a random alive enemy to shoot
+                int randomIndex = (int)(Math.random() * aliveEnemies.size());
+                Enemy shooter = aliveEnemies.get(randomIndex);
+                Rectangle2D.Float shooterHB = shooter.getHitBox();
+                
+                // Create projectile moving away from enemy
+                float projectileX = shooterHB.x + shooterHB.width / 2;
+                float projectileY = shooterHB.y + shooterHB.height / 2;
+                float projectileSpeed = 2.0f * Main.Game.SCALE;
+                
+                // Shoot in a direction (could be toward player, but for simplicity shoot right for now)
+                projectiles.add(new Projectile(projectileX, projectileY, projectileSpeed));
+                lastProjectileTime = now;
+            }
         }
         
         // Update projectiles
@@ -128,6 +138,9 @@ public class EnemyManager {
     public boolean collidesWithPlayer(Rectangle2D.Float playerHB) {
         Rectangle playerRect = new Rectangle((int)playerHB.x, (int)playerHB.y, (int)playerHB.width, (int)playerHB.height);
         for (Enemy e : enemies) {
+            // Don't collide with dying enemies
+            if (e.isDying()) continue;
+            
             Rectangle2D.Float hb = e.getHitBox();
             Rectangle enemyRect = new Rectangle((int)hb.x, (int)hb.y, (int)hb.width, (int)hb.height);
             if (playerRect.intersects(enemyRect)) return true;
@@ -141,6 +154,9 @@ public class EnemyManager {
         
         // Direct float-based collision detection without creating Rectangle objects
         for (Enemy e : enemies) {
+            // Don't hit enemies that are already dying
+            if (e.isDying()) continue;
+            
             Rectangle2D.Float hb = e.getHitBox();
             // Check if rectangles intersect
             if (attackHitbox.intersects(hb)) {

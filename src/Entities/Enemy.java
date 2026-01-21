@@ -20,6 +20,12 @@ public class Enemy extends Entity {
     
     // Health system
     private int health = 1;
+    
+    // Death animation
+    private boolean dying = false;
+    private int deathAnimationTick = 0;
+    private final int deathAnimationDuration = 30; // ~0.5 seconds at 60 FPS
+    private float deathFadeAlpha = 1.0f; // For fade-out effect
 
     // Animation frames per variant
     private static BufferedImage[][] enemyFrames; // [variant][frameIndex]
@@ -156,6 +162,13 @@ public class Enemy extends Entity {
     }
 
     public void update() {
+        // If dying, only update death animation
+        if (dying) {
+            deathAnimationTick++;
+            deathFadeAlpha = 1.0f - ((float)deathAnimationTick / deathAnimationDuration);
+            return;
+        }
+        
         // Animate
         if (imagesAvailable && enemyFrames != null && variant < enemyFrames.length && enemyFrames[variant] != null) {
             animTick++;
@@ -232,41 +245,98 @@ public class Enemy extends Entity {
         int drawX = (int) hitBox.x + ((int)hitBox.width - drawW) / 2 - cameraOffsetX;
         int drawY = (int) (hitBox.y + hitBox.height - drawH);
 
-        g.drawImage(srcImg, drawX, drawY, drawW, drawH, null);
+        // Apply death animation effects
+        if (dying) {
+            Graphics2D g2d = (Graphics2D) g;
+            // Save original composite
+            Composite originalComposite = g2d.getComposite();
+            
+            // Apply fade-out effect
+            g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, Math.max(0, deathFadeAlpha)));
+            
+            // Draw with rotation/scale effect for dramatic death
+            double deathProgress = (double)deathAnimationTick / deathAnimationDuration;
+            double rotationAngle = deathProgress * Math.PI * 0.5; // 90 degree rotation
+            double scaleMultiplier = 1.0 - (deathProgress * 0.3); // Shrink to 70%
+            
+            // Calculate center point for rotation
+            int centerX = drawX + drawW / 2;
+            int centerY = drawY + drawH / 2;
+            
+            // Apply transformations
+            java.awt.geom.AffineTransform transform = g2d.getTransform();
+            g2d.translate(centerX, centerY);
+            g2d.rotate(rotationAngle);
+            g2d.scale(scaleMultiplier, scaleMultiplier);
+            g2d.drawImage(srcImg, -drawW / 2, -drawH / 2, drawW, drawH, null);
+            
+            // Restore original transform and composite
+            g2d.setTransform(transform);
+            g2d.setComposite(originalComposite);
+        } else {
+            g.drawImage(srcImg, drawX, drawY, drawW, drawH, null);
+        }
     }
 
     private void drawFallback(Graphics g, int cameraOffsetX) {
         // Visible debugging fallback: colored rectangle with "E" label so you can see enemies
-        g.setColor(new Color(200, 40, 40));
         int x = Math.max(0, (int) hitBox.x - cameraOffsetX);
         int y = Math.max(0, (int) hitBox.y);
         int w = Math.max(8, (int) hitBox.width);
         int h = Math.max(8, (int) hitBox.height);
-        g.fillRect(x, y, w, h);
+        
+        // Apply death animation to fallback as well
+        if (dying) {
+            Graphics2D g2d = (Graphics2D) g;
+            Composite originalComposite = g2d.getComposite();
+            g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, Math.max(0, deathFadeAlpha)));
+            
+            g.setColor(new Color(200, 40, 40));
+            g.fillRect(x, y, w, h);
 
-        g.setColor(Color.WHITE);
-        g.setFont(new Font("SansSerif", Font.BOLD, Math.max(10, (int)(12 * Game.SCALE))));
-        FontMetrics fm = g.getFontMetrics();
-        String s = "E";
-        int tx = x + (w - fm.stringWidth(s)) / 2;
-        int ty = y + (h + fm.getAscent()) / 2 - 2;
-        g.drawString(s, tx, ty);
+            g.setColor(Color.WHITE);
+            g.setFont(new Font("SansSerif", Font.BOLD, Math.max(10, (int)(12 * Game.SCALE))));
+            FontMetrics fm = g.getFontMetrics();
+            String s = "E";
+            int tx = x + (w - fm.stringWidth(s)) / 2;
+            int ty = y + (h + fm.getAscent()) / 2 - 2;
+            g.drawString(s, tx, ty);
+            
+            g2d.setComposite(originalComposite);
+        } else {
+            g.setColor(new Color(200, 40, 40));
+            g.fillRect(x, y, w, h);
+
+            g.setColor(Color.WHITE);
+            g.setFont(new Font("SansSerif", Font.BOLD, Math.max(10, (int)(12 * Game.SCALE))));
+            FontMetrics fm = g.getFontMetrics();
+            String s = "E";
+            int tx = x + (w - fm.stringWidth(s)) / 2;
+            int ty = y + (h + fm.getAscent()) / 2 - 2;
+            g.drawString(s, tx, ty);
+        }
     }
     
     // Health API
     public void takeDamage(int amount) {
-        if (amount <= 0) return;
+        if (amount <= 0 || dying) return; // Don't take damage if already dying
         health = Math.max(0, health - amount);
         // Play damage sound
         util.SoundManager.play(util.SoundManager.SoundEffect.ENEMY_DAMAGE);
-        // Play death sound if enemy dies
+        // Start death animation if enemy dies
         if (health <= 0) {
+            dying = true;
             util.SoundManager.play(util.SoundManager.SoundEffect.ENEMY_DEATH);
         }
     }
     
     public boolean isDead() {
-        return health <= 0;
+        // Only truly dead when death animation is complete
+        return dying && deathAnimationTick >= deathAnimationDuration;
+    }
+    
+    public boolean isDying() {
+        return dying;
     }
     
     public int getHealth() {
