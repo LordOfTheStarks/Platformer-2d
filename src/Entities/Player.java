@@ -26,7 +26,7 @@ public class Player extends Entity{
     private float offsetX = 21* Game.SCALE , offsetY = 4*Game.SCALE;
     private float airSpeed = 0;
     private float gravity = 0.04f * Game.SCALE;
-    private float jumpSpeed = -2.25f * Game.SCALE;
+    private float jumpSpeed = -2.8f * Game.SCALE; // Increased for better platforming
     private float xSpeed;
 
     // Double jump

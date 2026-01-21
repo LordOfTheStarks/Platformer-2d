@@ -31,7 +31,7 @@ public class Playing extends State implements StateMethods {
     private final GoldUI goldUI = new GoldUI();
     private final HeartsUI heartsUI = new HeartsUI();
 
-    // Enemy contact damage cooldown
+    // Enemy contact damage cooldown (also used for spike damage)
     private long lastDamageMs = 0;
     private final long damageCooldownMs = 600;
 
@@ -182,8 +182,15 @@ public class Playing extends State implements StateMethods {
     }
 
     private void spikeManagerUpdateAndCheck() {
-        if (spikeManager.isPlayerOnSpike(player.getHitBox()) && !playerDead) {
-            triggerDeath();
+        long now = System.currentTimeMillis();
+        if (spikeManager.isPlayerOnSpike(player.getHitBox())) {
+            if (now - lastDamageMs > damageCooldownMs) {
+                player.takeHeartDamage(1);
+                lastDamageMs = now;
+                if (player.getHearts() <= 0 && !playerDead) {
+                    triggerDeath();
+                }
+            }
         }
     }
 
