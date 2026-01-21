@@ -4,6 +4,7 @@ import Main.Game;
 import util.LoadSave;
 import java.awt.*;
 import java.awt.geom.AffineTransform;
+import java.awt.geom.Rectangle2D;
 import java.awt.image.AffineTransformOp;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
@@ -15,6 +16,7 @@ public class Player extends Entity{
     private static ArrayList<BufferedImage[]> animations = new ArrayList<>();
 
     private int tick,index,speed= 30;
+    private int attackSpeed = 15; // Faster animation speed for attacks
     private int currentAction = RUNNING;
     private boolean moving = false,attacking = false, mirror = false;
     private boolean left,right,jump,inAir = false;
@@ -25,7 +27,7 @@ public class Player extends Entity{
     private float offsetX = 21* Game.SCALE , offsetY = 4*Game.SCALE;
     private float airSpeed = 0;
     private float gravity = 0.04f * Game.SCALE;
-    private float jumpSpeed = -2.25f * Game.SCALE;
+    private float jumpSpeed = -2.8f * Game.SCALE; // Increased for better platforming
     private float xSpeed;
 
     // Double jump
@@ -48,9 +50,11 @@ public class Player extends Entity{
         setAnimation();
     }
 
-    public void render(Graphics g){
-        g.drawImage(animations.get(currentAction)[index], (int)hitBox.x - (int)offsetX, (int)(hitBox.y) - (int)offsetY, width, height, null);
-        // drawHitBox(g);
+    public void render(Graphics g, int cameraOffsetX){
+        int drawX = (int)hitBox.x - (int)offsetX - cameraOffsetX;
+        int drawY = (int)hitBox.y - (int)offsetY;
+        g.drawImage(animations.get(currentAction)[index], drawX, drawY, width, height, null);
+        // drawHitBox(g, cameraOffsetX);
     }
 
     public boolean isInAir() {
@@ -163,7 +167,9 @@ public class Player extends Entity{
 
     private void updateAnimationTick() {
         tick++;
-        if (tick >= speed) {
+        // Use faster animation speed for attacks
+        int currentSpeed = (currentAction == ATTACK || currentAction == ATTACK_MIRROR) ? attackSpeed : speed;
+        if (tick >= currentSpeed) {
             tick = 0;
             index++;
             if (index >= animations.get(currentAction).length) {
@@ -245,6 +251,8 @@ public class Player extends Entity{
             inAir = true;
             airSpeed = jumpSpeed;
             jumpsDone++;
+            // Play jump sound
+            util.SoundManager.play(util.SoundManager.SoundEffect.PLAYER_JUMP);
         }
         jump = false;
     }
@@ -274,6 +282,8 @@ public class Player extends Entity{
     public void takeHeartDamage(int heartsToLose) {
         if (heartsToLose <= 0) return;
         hearts = Math.max(0, hearts - heartsToLose);
+        // Play damage sound
+        util.SoundManager.play(util.SoundManager.SoundEffect.PLAYER_DAMAGE);
     }
     public void healHearts(int heartsToAdd) {
         if (heartsToAdd <= 0) return;
@@ -286,6 +296,10 @@ public class Player extends Entity{
     // boolean setters
     public void setAttacking(boolean attacking){
         this.attacking = attacking;
+        // Play attack sound when starting attack
+        if (attacking) {
+            util.SoundManager.play(util.SoundManager.SoundEffect.PLAYER_ATTACK);
+        }
     }
     public void setLeft(boolean left) {
         this.left = left;
@@ -301,5 +315,36 @@ public class Player extends Entity{
         setRight(false);
         setLeft(false);
         setJump(false);
+    }
+    
+    // Attack system
+    public boolean isAttacking() {
+        return attacking;
+    }
+    
+    /**
+     * Returns the attack hitbox when the player is attacking, null otherwise.
+     * The hitbox is positioned in front of the player based on facing direction.
+     * Size: approximately 30x40 pixels scaled.
+     */
+    public Rectangle2D.Float getAttackHitbox() {
+        if (!attacking) return null;
+        
+        int attackW = (int)(30 * Game.SCALE);
+        int attackH = (int)(40 * Game.SCALE);
+        
+        float attackX;
+        if (mirror) {
+            // Facing left - attack hitbox to the left of player
+            attackX = hitBox.x - attackW;
+        } else {
+            // Facing right - attack hitbox to the right of player
+            attackX = hitBox.x + hitBox.width;
+        }
+        
+        // Vertically centered on player hitbox
+        float attackY = hitBox.y + (hitBox.height - attackH) / 2;
+        
+        return new Rectangle2D.Float(attackX, attackY, attackW, attackH);
     }
 }

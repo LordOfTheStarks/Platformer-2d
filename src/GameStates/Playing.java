@@ -23,6 +23,7 @@ public class Playing extends State implements StateMethods {
     private EnemyManager enemyManager;
     private SpikeManager spikeManager;
     private CoinManager coinManager;
+    private levels.HeartManager heartManager;
     private PauseOverlay pauseOverlay;
     private DeathOverlay deathOverlay;
     private boolean paused;
@@ -31,7 +32,7 @@ public class Playing extends State implements StateMethods {
     private final GoldUI goldUI = new GoldUI();
     private final HeartsUI heartsUI = new HeartsUI();
 
-    // Enemy contact damage cooldown
+    // Enemy contact damage cooldown (also used for spike damage)
     private long lastDamageMs = 0;
     private final long damageCooldownMs = 600;
 
@@ -43,6 +44,9 @@ public class Playing extends State implements StateMethods {
 
     // Track whether player was in-air last frame — used to detect landing events reliably
     private boolean prevInAir = false;
+    
+    // Camera system for side-scrolling
+    private int cameraOffsetX = 0;
 
     public Playing(Game game) {
         super(game);
@@ -63,6 +67,9 @@ public class Playing extends State implements StateMethods {
         coinManager = new CoinManager();
         // ensure coins do not spawn on spikes
         coinManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
+        
+        heartManager = new levels.HeartManager();
+        heartManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
 
         pauseOverlay = new PauseOverlay(game);
         deathOverlay = new DeathOverlay(game);
@@ -114,15 +121,33 @@ public class Playing extends State implements StateMethods {
 
         levelManager.update();
         player.update();
+        
+        // Update camera position to follow player
+        updateCamera();
+        
         enemyManager.update();
         spikeManagerUpdateAndCheck();
         enemyContactDamageCheck();
+        
+        // Check player attack collision with enemies
+        if (player.isAttacking()) {
+            Rectangle2D.Float attackHitbox = player.getAttackHitbox();
+            enemyManager.checkPlayerAttackCollision(attackHitbox);
+        }
+        
         pauseOverlay.update();
 
         // update and collect coins
         coinManager.update();
         int collected = coinManager.collectIfPlayerTouches(player.getHitBox());
         if (collected > 0) addGold(collected);
+        
+        // update and collect hearts
+        heartManager.update();
+        int heartsCollected = heartManager.collectIfPlayerTouches(player.getHitBox());
+        if (heartsCollected > 0) {
+            player.healHearts(heartsCollected);
+        }
 
         goldUI.update();
         heartsUI.update();
@@ -134,10 +159,57 @@ public class Playing extends State implements StateMethods {
         prevPlayerBottom = playerBottom();
         prevInAir = player.isInAir();
     }
+    
+    /**
+     * Update camera position to follow the player with smooth scrolling.
+     * Camera centers on player horizontally but respects level boundaries.
+     */
+    private void updateCamera() {
+        Rectangle2D.Float playerHB = player.getHitBox();
+        int playerCenterX = (int)(playerHB.x + playerHB.width / 2);
+        
+        // Center camera on player
+        int desiredCameraX = playerCenterX - GAME_WIDTH / 2;
+        
+        // Get level width
+        int levelWidth = levelManager.getCurrentLevel().getLevelWidth() * TILES_SIZE;
+        
+        // Clamp camera to level boundaries (handle short levels)
+        int maxCameraX = Math.max(0, levelWidth - GAME_WIDTH);
+        cameraOffsetX = Math.max(0, Math.min(desiredCameraX, maxCameraX));
+    }
 
     private void enemyContactDamageCheck() {
         long now = System.currentTimeMillis();
+        
+        // Check contact damage from enemies
         if (enemyManager.collidesWithPlayer(player.getHitBox())) {
+            applyDamageToPlayer(1, now);
+        }
+        
+        // Check projectile damage
+        int projectileDamage = enemyManager.checkProjectilePlayerCollision(player.getHitBox());
+        if (projectileDamage > 0) {
+            applyDamageToPlayer(projectileDamage, now);
+        }
+    }
+    
+    /**
+     * Apply damage to the player with cooldown check.
+     */
+    private void applyDamageToPlayer(int damage, long currentTime) {
+        if (currentTime - lastDamageMs > damageCooldownMs) {
+            player.takeHeartDamage(damage);
+            lastDamageMs = currentTime;
+            if (player.getHearts() <= 0 && !playerDead) {
+                triggerDeath();
+            }
+        }
+    }
+
+    private void spikeManagerUpdateAndCheck() {
+        long now = System.currentTimeMillis();
+        if (spikeManager.isPlayerOnSpike(player.getHitBox())) {
             if (now - lastDamageMs > damageCooldownMs) {
                 player.takeHeartDamage(1);
                 lastDamageMs = now;
@@ -148,14 +220,12 @@ public class Playing extends State implements StateMethods {
         }
     }
 
-    private void spikeManagerUpdateAndCheck() {
-        if (spikeManager.isPlayerOnSpike(player.getHitBox()) && !playerDead) {
-            triggerDeath();
-        }
-    }
-
     private void handleBorderTransitions() {
-        int threshold = GAME_WIDTH - (TILES_SIZE / 4);
+        // Get the level width
+        int levelWidth = levelManager.getCurrentLevel().getLevelWidth() * TILES_SIZE;
+        
+        // Transition when player reaches near the right edge of the level
+        int threshold = levelWidth - (TILES_SIZE / 4);
         if (playerRight() >= threshold) {
             if (!levelManager.isLastLevel()) {
                 levelManager.nextLevel();
@@ -163,7 +233,9 @@ public class Playing extends State implements StateMethods {
                 enemyManager.spawnForLevel(levelManager.getCurrentLevel());
                 spikeManager.spawnForLevel(levelManager.getCurrentLevel());
                 coinManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
+                heartManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
                 setPlayerLeftStart();
+                cameraOffsetX = 0; // Reset camera to start of new level
             } else {
                 GameState.state = GameState.MENU;
             }
@@ -183,26 +255,27 @@ public class Playing extends State implements StateMethods {
             int centerX = (int) (hb.x + hb.width / 2);
             int xt = centerX / TILES_SIZE;
             int[][] data = levelManager.getCurrentLevel().getLevelData();
+            int levelWidth = levelManager.getCurrentLevel().getLevelWidth();
 
-            if (data != null && xt >= 0 && xt < Game.TILES_WIDTH) {
-                // Pit center derived from LevelFactory.level2 layout
-                int pitCenter = Game.TILES_WIDTH / 2;
-                int pitLeft = pitCenter - 2;
-                int pitRight = pitCenter + 2;
+            if (data != null && xt >= 0 && xt < levelWidth) {
+                // Pit center derived from LevelFactory.level2 layout (now at tile 30 for 60-tile level)
+                int pitCenter = 30;
+                int pitLeft = pitCenter - 3;
+                int pitRight = pitCenter + 3;
 
                 // Only consider when player's horizontal center is over the pit columns
                 if (xt >= pitLeft && xt <= pitRight) {
                     // Platform columns bridging the pit (per LevelFactory.level2)
-                    int leftPlatformStart = pitCenter - 4;
+                    int leftPlatformStart = pitCenter - 5;
                     int leftPlatformEnd = pitCenter - 1;
                     int rightPlatformStart = pitCenter + 1;
-                    int rightPlatformEnd = pitCenter + 4;
+                    int rightPlatformEnd = pitCenter + 5;
 
                     // Find the platform row by scanning those platform columns and
                     // taking the deepest topmost solid among them; that represents platform height.
                     int platformRow = Integer.MIN_VALUE;
                     for (int x = leftPlatformStart; x <= leftPlatformEnd; x++) {
-                        if (x < 0 || x >= Game.TILES_WIDTH) continue;
+                        if (x < 0 || x >= levelWidth) continue;
                         for (int y = 0; y < Game.TILES_HEIGHT; y++) {
                             if (data[y][x] != util.LevelFactory.AIR) {
                                 if (y > platformRow) platformRow = y;
@@ -211,7 +284,7 @@ public class Playing extends State implements StateMethods {
                         }
                     }
                     for (int x = rightPlatformStart; x <= rightPlatformEnd; x++) {
-                        if (x < 0 || x >= Game.TILES_WIDTH) continue;
+                        if (x < 0 || x >= levelWidth) continue;
                         for (int y = 0; y < Game.TILES_HEIGHT; y++) {
                             if (data[y][x] != util.LevelFactory.AIR) {
                                 if (y > platformRow) platformRow = y;
@@ -268,6 +341,8 @@ public class Playing extends State implements StateMethods {
     private void triggerDeath() {
         playerDead = true;
         deathOverlay.activate();
+        // Play death sound
+        util.SoundManager.play(util.SoundManager.SoundEffect.PLAYER_DEATH);
         // Optionally stop sounds / play death sound here
     }
 
@@ -281,9 +356,13 @@ public class Playing extends State implements StateMethods {
         enemyManager.spawnForLevel(levelManager.getCurrentLevel());
         spikeManager.spawnForLevel(levelManager.getCurrentLevel());
         coinManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
+        heartManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
         setPlayerLeftStart();
         player.resetHeartsToFull();
         player.resetBooleans();
+        
+        // Reset camera to beginning
+        cameraOffsetX = 0;
 
         // Clear death overlay and resume
         playerDead = false;
@@ -296,12 +375,13 @@ public class Playing extends State implements StateMethods {
 
     @Override
     public void draw(Graphics g) {
-        levelManager.draw(g);
-        spikeManager.draw(g);
-        // draw coins under player (so player appears above)
-        coinManager.draw(g);
-        player.render(g);
-        enemyManager.draw(g);
+        levelManager.draw(g, cameraOffsetX);
+        spikeManager.draw(g, cameraOffsetX);
+        // draw coins and hearts under player (so player appears above)
+        coinManager.draw(g, cameraOffsetX);
+        heartManager.draw(g, cameraOffsetX);
+        player.render(g, cameraOffsetX);
+        enemyManager.draw(g, cameraOffsetX);
 
         goldUI.draw(g, gold);
         heartsUI.draw(g, player.getHearts(), player.getMaxHearts());

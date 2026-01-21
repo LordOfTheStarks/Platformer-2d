@@ -109,6 +109,8 @@ public class CoinManager {
             if (playerRect.intersects(c.getBounds())) {
                 collected++;
                 removed.add(c);
+                // Play coin collection sound
+                util.SoundManager.play(util.SoundManager.SoundEffect.COIN_COLLECT);
             }
         }
         if (!removed.isEmpty()) coins.removeAll(removed);
@@ -125,10 +127,11 @@ public class CoinManager {
         }
     }
 
-    public void draw(Graphics g) {
+    public void draw(Graphics g, int cameraOffsetX) {
         if (frames == null || frames.length == 0) return;
         for (Coin c : coins) {
-            g.drawImage(frames[frameIndex], c.getX(), c.getY(), Coin.W, Coin.H, null);
+            int drawX = c.getX() - cameraOffsetX;
+            g.drawImage(frames[frameIndex], drawX, c.getY(), Coin.W, Coin.H, null);
         }
     }
 

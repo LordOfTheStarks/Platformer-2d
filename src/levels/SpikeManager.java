@@ -75,26 +75,29 @@ public class SpikeManager {
         return false;
     }
 
-    public void draw(Graphics g) {
+    public void draw(Graphics g, int cameraOffsetX) {
         Graphics2D g2 = (Graphics2D) g;
         Object prevHint = g2.getRenderingHint(RenderingHints.KEY_INTERPOLATION);
         g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
 
         for (Spike s : spikes) {
+            int drawX = s.getX() - cameraOffsetX;
+            int drawY = s.getY();
+            
             // soft shadow to give depth
             g2.setColor(new Color(0, 0, 0, 90));
             int shadowW = (int)(Spike.W * 0.6f);
             int shadowH = Math.max(2, Spike.H / 6);
-            int shadowX = s.getX() + (Spike.W - shadowW) / 2;
-            int shadowY = s.getY() + Spike.H - (shadowH / 2);
+            int shadowX = drawX + (Spike.W - shadowW) / 2;
+            int shadowY = drawY + Spike.H - (shadowH / 2);
             g2.fillOval(shadowX, shadowY, shadowW, shadowH);
 
             if (spikeImg != null) {
-                g2.drawImage(spikeImg, s.getX(), s.getY(), Spike.W, Spike.H, null);
+                g2.drawImage(spikeImg, drawX, drawY, Spike.W, Spike.H, null);
             } else {
                 // Fallback: draw a simple triangle if sprite missing
-                int[] xs = { s.getX(), s.getX() + Spike.W/2, s.getX() + Spike.W };
-                int[] ys = { s.getY() + Spike.H, s.getY(), s.getY() + Spike.H };
+                int[] xs = { drawX, drawX + Spike.W/2, drawX + Spike.W };
+                int[] ys = { drawY + Spike.H, drawY, drawY + Spike.H };
                 g2.setColor(Color.GRAY);
                 g2.fillPolygon(xs, ys, 3);
             }

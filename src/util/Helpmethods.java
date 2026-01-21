@@ -19,13 +19,18 @@ public class Helpmethods {
 
     }
     private static boolean isSolid(float x, float y, int[][] levelData){
-        if(x<0 || x>= Game.GAME_WIDTH)
+        if(x < 0)
             return true;
-        if(y<0 || y>= Game.GAME_HEIGHT)
+        if(y < 0 || y >= Game.GAME_HEIGHT)
             return true;
 
-        float xIndex = x/Game.TILES_SIZE;
-        float yIndex = y/Game.TILES_SIZE;
+        float xIndex = x / Game.TILES_SIZE;
+        float yIndex = y / Game.TILES_SIZE;
+        
+        // Check array bounds using actual level data dimensions
+        if(yIndex >= levelData.length || xIndex >= levelData[0].length)
+            return true;
+        
         int value = levelData[(int) yIndex][(int) xIndex];
 
         return value != 11;
