@@ -51,13 +51,30 @@ public class EnemyManager {
     }
 
     private int groundYPixel(int[][] data, int xTile) {
+        // Start from bottom and find first solid tile
         for (int y = Main.Game.TILES_HEIGHT - 1; y >= 0; y--) {
+            if (xTile < 0 || xTile >= data[0].length) continue;
             int idx = data[y][xTile];
             boolean solid = (idx != 11);
             if (solid) {
-                return y * Main.Game.TILES_SIZE;
+                // Found solid ground - check if there's space above for enemy
+                // Need at least 2 tiles of air above for enemy to spawn
+                int tilesAbove = 0;
+                for (int checkY = y - 1; checkY >= 0 && checkY > y - 3; checkY--) {
+                    if (data[checkY][xTile] == 11) {
+                        tilesAbove++;
+                    } else {
+                        break;
+                    }
+                }
+                
+                // If enough space above, this is a good spawn point
+                if (tilesAbove >= 2) {
+                    return y * Main.Game.TILES_SIZE;
+                }
             }
         }
+        // Fallback to middle of screen if no good position found
         return (int)(Main.Game.GAME_HEIGHT * 0.5f);
     }
 

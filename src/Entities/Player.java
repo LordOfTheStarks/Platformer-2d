@@ -248,6 +248,8 @@ public class Player extends Entity{
             inAir = true;
             airSpeed = jumpSpeed;
             jumpsDone++;
+            // Play jump sound
+            util.SoundManager.play(util.SoundManager.SoundEffect.PLAYER_JUMP);
         }
         jump = false;
     }
@@ -277,6 +279,8 @@ public class Player extends Entity{
     public void takeHeartDamage(int heartsToLose) {
         if (heartsToLose <= 0) return;
         hearts = Math.max(0, hearts - heartsToLose);
+        // Play damage sound
+        util.SoundManager.play(util.SoundManager.SoundEffect.PLAYER_DAMAGE);
     }
     public void healHearts(int heartsToAdd) {
         if (heartsToAdd <= 0) return;
@@ -289,6 +293,10 @@ public class Player extends Entity{
     // boolean setters
     public void setAttacking(boolean attacking){
         this.attacking = attacking;
+        // Play attack sound when starting attack
+        if (attacking) {
+            util.SoundManager.play(util.SoundManager.SoundEffect.PLAYER_ATTACK);
+        }
     }
     public void setLeft(boolean left) {
         this.left = left;

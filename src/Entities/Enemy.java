@@ -257,6 +257,12 @@ public class Enemy extends Entity {
     public void takeDamage(int amount) {
         if (amount <= 0) return;
         health = Math.max(0, health - amount);
+        // Play damage sound
+        util.SoundManager.play(util.SoundManager.SoundEffect.ENEMY_DAMAGE);
+        // Play death sound if enemy dies
+        if (health <= 0) {
+            util.SoundManager.play(util.SoundManager.SoundEffect.ENEMY_DEATH);
+        }
     }
     
     public boolean isDead() {

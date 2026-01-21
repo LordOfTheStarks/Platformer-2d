@@ -35,6 +35,9 @@ public class Game implements Runnable{
     }
 
     private void init() {
+        // Initialize sound system
+        util.SoundManager.init();
+        
         menu = new Menu(this);
         playing = new Playing(this);
         options = new Options(this);

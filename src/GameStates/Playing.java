@@ -314,6 +314,8 @@ public class Playing extends State implements StateMethods {
     private void triggerDeath() {
         playerDead = true;
         deathOverlay.activate();
+        // Play death sound
+        util.SoundManager.play(util.SoundManager.SoundEffect.PLAYER_DEATH);
         // Optionally stop sounds / play death sound here
     }
 

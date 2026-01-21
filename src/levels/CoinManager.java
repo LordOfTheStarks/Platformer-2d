@@ -109,6 +109,8 @@ public class CoinManager {
             if (playerRect.intersects(c.getBounds())) {
                 collected++;
                 removed.add(c);
+                // Play coin collection sound
+                util.SoundManager.play(util.SoundManager.SoundEffect.COIN_COLLECT);
             }
         }
         if (!removed.isEmpty()) coins.removeAll(removed);
