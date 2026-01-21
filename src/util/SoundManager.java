@@ -57,6 +57,7 @@ public class SoundManager {
      * Load a sound effect into memory.
      */
     private static void loadSound(SoundEffect effect) {
+        AudioInputStream audioStream = null;
         try {
             InputStream is = SoundManager.class.getResourceAsStream(effect.getPath());
             if (is == null) {
@@ -64,7 +65,7 @@ public class SoundManager {
                 return;
             }
             
-            AudioInputStream audioStream = AudioSystem.getAudioInputStream(is);
+            audioStream = AudioSystem.getAudioInputStream(is);
             Clip clip = AudioSystem.getClip();
             clip.open(audioStream);
             soundClips.put(effect, clip);
@@ -72,6 +73,15 @@ public class SoundManager {
         } catch (UnsupportedAudioFileException | IOException | LineUnavailableException e) {
             // Sound file issue - just skip it
             System.out.println("[SoundManager] Could not load sound: " + effect.getPath());
+        } finally {
+            // Close the audio stream
+            if (audioStream != null) {
+                try {
+                    audioStream.close();
+                } catch (IOException e) {
+                    // Ignore close errors
+                }
+            }
         }
     }
     

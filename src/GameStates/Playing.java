@@ -173,24 +173,25 @@ public class Playing extends State implements StateMethods {
         
         // Check contact damage from enemies
         if (enemyManager.collidesWithPlayer(player.getHitBox())) {
-            if (now - lastDamageMs > damageCooldownMs) {
-                player.takeHeartDamage(1);
-                lastDamageMs = now;
-                if (player.getHearts() <= 0 && !playerDead) {
-                    triggerDeath();
-                }
-            }
+            applyDamageToPlayer(1, now);
         }
         
         // Check projectile damage
         int projectileDamage = enemyManager.checkProjectilePlayerCollision(player.getHitBox());
         if (projectileDamage > 0) {
-            if (now - lastDamageMs > damageCooldownMs) {
-                player.takeHeartDamage(projectileDamage);
-                lastDamageMs = now;
-                if (player.getHearts() <= 0 && !playerDead) {
-                    triggerDeath();
-                }
+            applyDamageToPlayer(projectileDamage, now);
+        }
+    }
+    
+    /**
+     * Apply damage to the player with cooldown check.
+     */
+    private void applyDamageToPlayer(int damage, long currentTime) {
+        if (currentTime - lastDamageMs > damageCooldownMs) {
+            player.takeHeartDamage(damage);
+            lastDamageMs = currentTime;
+            if (player.getHearts() <= 0 && !playerDead) {
+                triggerDeath();
             }
         }
     }

@@ -56,6 +56,11 @@ public class EnemyManager {
     }
 
     private int groundYPixel(int[][] data, int xTile) {
+        // Safety check for empty data
+        if (data == null || data.length == 0 || data[0].length == 0) {
+            return (int)(Main.Game.GAME_HEIGHT * 0.5f);
+        }
+        
         // Start from bottom and find first solid tile
         for (int y = Main.Game.TILES_HEIGHT - 1; y >= 0; y--) {
             if (xTile < 0 || xTile >= data[0].length) continue;
