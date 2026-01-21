@@ -16,7 +16,10 @@ public class SoundManager {
     private static boolean soundEnabled = true;
     private static boolean musicEnabled = true;
     private static boolean initialized = false;
-    private static float musicVolume = 0.5f; // 50% volume for background music
+    
+    /** Default volume for background music (0.0 to 1.0) */
+    private static final float DEFAULT_MUSIC_VOLUME = 0.5f;
+    private static float musicVolume = DEFAULT_MUSIC_VOLUME;
     
     public enum SoundEffect {
         PLAYER_JUMP("/sounds/jump.wav"),

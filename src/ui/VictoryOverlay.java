@@ -13,7 +13,9 @@ public class VictoryOverlay {
 
     private boolean active = false;
     private long activatedAt = 0L;
-    private final long minShowMs = 2000L; // Minimum time to show before allowing continue
+    
+    /** Minimum time to show before allowing continue (milliseconds) */
+    private static final long MIN_SHOW_DURATION_MS = 2000L;
 
     private final Font bigFont;
     private final Font mediumFont;
@@ -66,7 +68,7 @@ public class VictoryOverlay {
     }
 
     public boolean canContinue() {
-        return System.currentTimeMillis() - activatedAt >= minShowMs;
+        return System.currentTimeMillis() - activatedAt >= MIN_SHOW_DURATION_MS;
     }
 
     public void update() {

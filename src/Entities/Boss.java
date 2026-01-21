@@ -18,24 +18,28 @@ import java.util.List;
 public class Boss extends Entity {
     private int[][] levelData;
 
-    // Movement - faster than normal enemies
+    // Movement - faster than normal enemies (normal enemy speed is 0.5f)
+    /** Speed multiplier for boss movement (faster than regular enemies) */
+    private static final float BASE_SPEED_MULTIPLIER = 1.2f;
     private float xSpeed;
-    private float baseSpeed = 1.2f * Game.SCALE; // Faster than normal enemies (0.5f)
+    private float baseSpeed = BASE_SPEED_MULTIPLIER * Game.SCALE;
     
     // Health system - 5 hearts
-    private int health = 5;
-    private int maxHealth = 5;
+    private static final int BOSS_MAX_HEALTH = 5;
+    private int health = BOSS_MAX_HEALTH;
+    private int maxHealth = BOSS_MAX_HEALTH;
     
     // Death animation
+    private static final int DEATH_ANIMATION_DURATION = 60; // Longer death animation for boss
     private boolean dying = false;
     private int deathAnimationTick = 0;
-    private final int deathAnimationDuration = 60; // Longer death animation for boss
     private float deathFadeAlpha = 1.0f;
     
     // Attack system - projectiles
+    /** Cooldown between projectile shots (milliseconds) */
+    private static final long PROJECTILE_COOLDOWN_MS = 1500L;
     private List<Projectile> projectiles = new ArrayList<>();
     private long lastProjectileTime = 0;
-    private final long projectileCooldown = 1500; // 1.5 seconds between shots (faster than regular enemies)
     private float projectileSpeed = 3.0f * Game.SCALE;
     
     // Visual size for boss (larger than regular enemies)
@@ -68,7 +72,7 @@ public class Boss extends Entity {
         // If dying, only update death animation
         if (dying) {
             deathAnimationTick++;
-            deathFadeAlpha = 1.0f - ((float)deathAnimationTick / deathAnimationDuration);
+            deathFadeAlpha = 1.0f - ((float)deathAnimationTick / DEATH_ANIMATION_DURATION);
             return;
         }
         
@@ -128,7 +132,7 @@ public class Boss extends Entity {
         if (playerHitBox == null || dying) return;
         
         long now = System.currentTimeMillis();
-        if (now - lastProjectileTime > projectileCooldown) {
+        if (now - lastProjectileTime > PROJECTILE_COOLDOWN_MS) {
             // Calculate direction to player
             float playerCenterX = playerHitBox.x + playerHitBox.width / 2;
             float playerCenterY = playerHitBox.y + playerHitBox.height / 2;
@@ -288,7 +292,7 @@ public class Boss extends Entity {
     }
     
     public boolean isDead() {
-        return dying && deathAnimationTick >= deathAnimationDuration;
+        return dying && deathAnimationTick >= DEATH_ANIMATION_DURATION;
     }
     
     public boolean isDying() {

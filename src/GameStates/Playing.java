@@ -243,12 +243,16 @@ public class Playing extends State implements StateMethods {
      * Spawn the boss in the boss arena.
      */
     private void spawnBoss() {
+        // Boss spawn position constants (tiles from edge)
+        final int BOSS_SPAWN_OFFSET_X_TILES = 10;
+        final int BOSS_SPAWN_OFFSET_Y_TILES = 5;
+        
         int[][] levelData = levelManager.getCurrentLevel().getLevelData();
         int levelWidth = levelManager.getCurrentLevel().getLevelWidth();
         
         // Spawn boss on the right side of the arena
-        int bossX = (levelWidth - 10) * TILES_SIZE;
-        int bossY = (TILES_HEIGHT - 5) * TILES_SIZE;
+        int bossX = (levelWidth - BOSS_SPAWN_OFFSET_X_TILES) * TILES_SIZE;
+        int bossY = (TILES_HEIGHT - BOSS_SPAWN_OFFSET_Y_TILES) * TILES_SIZE;
         
         int bossW = (int)(60 * SCALE);
         int bossH = (int)(50 * SCALE);
