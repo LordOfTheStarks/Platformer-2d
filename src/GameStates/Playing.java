@@ -1,5 +1,6 @@
 package GameStates;
 
+import Entities.Boss;
 import Entities.EnemyManager;
 import Entities.Player;
 import Main.Game;
@@ -8,6 +9,7 @@ import levels.SpikeManager;
 import ui.GoldUI;
 import ui.HeartsUI;
 import ui.DeathOverlay;
+import ui.VictoryOverlay;
 
 import java.awt.*;
 import java.awt.event.KeyEvent;
@@ -26,7 +28,12 @@ public class Playing extends State implements StateMethods {
     private levels.HeartManager heartManager;
     private PauseOverlay pauseOverlay;
     private DeathOverlay deathOverlay;
+    private VictoryOverlay victoryOverlay;
     private boolean paused;
+    
+    // Boss system
+    private Boss boss;
+    private boolean bossDefeated = false;
 
     private int gold = 0;
     private final GoldUI goldUI = new GoldUI();
@@ -47,6 +54,9 @@ public class Playing extends State implements StateMethods {
     
     // Camera system for side-scrolling
     private int cameraOffsetX = 0;
+    
+    // Background music started flag
+    private boolean musicStarted = false;
 
     public Playing(Game game) {
         super(game);
@@ -73,10 +83,21 @@ public class Playing extends State implements StateMethods {
 
         pauseOverlay = new PauseOverlay(game);
         deathOverlay = new DeathOverlay(game);
+        victoryOverlay = new VictoryOverlay(game);
+        
+        // Boss starts as null (spawned when entering boss level)
+        boss = null;
+        bossDefeated = false;
 
         // initialize trackers
         prevPlayerBottom = playerBottom();
         prevInAir = player.isInAir();
+        
+        // Start background music
+        if (!musicStarted) {
+            util.SoundManager.startBackgroundMusic();
+            musicStarted = true;
+        }
     }
 
     public void windowFocusLost() {
@@ -113,6 +134,12 @@ public class Playing extends State implements StateMethods {
 
     @Override
     public void update() {
+        // If victory overlay active, only update overlay
+        if (victoryOverlay.isActive()) {
+            victoryOverlay.update();
+            return;
+        }
+        
         // If death overlay active, only update overlay (freeze game world)
         if (deathOverlay.isActive()) {
             deathOverlay.update();
@@ -125,14 +152,28 @@ public class Playing extends State implements StateMethods {
         // Update camera position to follow player
         updateCamera();
         
-        enemyManager.update();
-        spikeManagerUpdateAndCheck();
-        enemyContactDamageCheck();
+        // Handle boss level differently
+        if (levelManager.isBossLevel()) {
+            updateBossLevel();
+        } else {
+            enemyManager.update();
+            enemyContactDamageCheck();
+        }
         
-        // Check player attack collision with enemies
-        if (player.isAttacking()) {
+        spikeManagerUpdateAndCheck();
+        
+        // Check player attack collision with enemies (non-boss levels)
+        if (player.isAttacking() && !levelManager.isBossLevel()) {
             Rectangle2D.Float attackHitbox = player.getAttackHitbox();
             enemyManager.checkPlayerAttackCollision(attackHitbox);
+        }
+        
+        // Check player attack collision with boss
+        if (player.isAttacking() && boss != null && !boss.isDying()) {
+            Rectangle2D.Float attackHitbox = player.getAttackHitbox();
+            if (attackHitbox != null && boss.getHitBox().intersects(attackHitbox)) {
+                boss.takeDamage(1);
+            }
         }
         
         pauseOverlay.update();
@@ -158,6 +199,68 @@ public class Playing extends State implements StateMethods {
         // update previous-bottom and prevInAir trackers for next frame
         prevPlayerBottom = playerBottom();
         prevInAir = player.isInAir();
+    }
+    
+    /**
+     * Update logic specific to the boss level.
+     */
+    private void updateBossLevel() {
+        // Spawn boss if not already spawned
+        if (boss == null && !bossDefeated) {
+            spawnBoss();
+        }
+        
+        // Update boss
+        if (boss != null) {
+            boss.setPlayerHitBox(player.getHitBox());
+            boss.update();
+            
+            // Check if boss is dead
+            if (boss.isDead()) {
+                bossDefeated = true;
+                boss = null;
+                triggerVictory();
+                return;
+            }
+            
+            // Check boss damage to player
+            long now = System.currentTimeMillis();
+            
+            // Boss contact damage (1 heart)
+            if (!boss.isDying() && boss.collidesWithPlayer(player.getHitBox())) {
+                applyDamageToPlayer(1, now);
+            }
+            
+            // Boss projectile damage (1 heart each)
+            int projectileDamage = boss.checkProjectilePlayerCollision(player.getHitBox());
+            if (projectileDamage > 0) {
+                applyDamageToPlayer(projectileDamage, now);
+            }
+        }
+    }
+    
+    /**
+     * Spawn the boss in the boss arena.
+     */
+    private void spawnBoss() {
+        int[][] levelData = levelManager.getCurrentLevel().getLevelData();
+        int levelWidth = levelManager.getCurrentLevel().getLevelWidth();
+        
+        // Spawn boss on the right side of the arena
+        int bossX = (levelWidth - 10) * TILES_SIZE;
+        int bossY = (TILES_HEIGHT - 5) * TILES_SIZE;
+        
+        int bossW = (int)(60 * SCALE);
+        int bossH = (int)(50 * SCALE);
+        
+        boss = new Boss(bossX, bossY, bossW, bossH, levelData);
+    }
+    
+    /**
+     * Trigger victory when boss is defeated.
+     */
+    private void triggerVictory() {
+        victoryOverlay.activate();
     }
     
     /**
@@ -221,6 +324,12 @@ public class Playing extends State implements StateMethods {
     }
 
     private void handleBorderTransitions() {
+        // Don't allow transition out of boss arena unless boss is defeated
+        if (levelManager.isBossLevel()) {
+            // Boss level has walls - no transition
+            return;
+        }
+        
         // Get the level width
         int levelWidth = levelManager.getCurrentLevel().getLevelWidth() * TILES_SIZE;
         
@@ -230,10 +339,23 @@ public class Playing extends State implements StateMethods {
             if (!levelManager.isLastLevel()) {
                 levelManager.nextLevel();
                 player.loadLevelData(levelManager.getCurrentLevel().getLevelData());
-                enemyManager.spawnForLevel(levelManager.getCurrentLevel());
+                
+                // Check if entering boss level
+                if (levelManager.isBossLevel()) {
+                    // Clear regular enemies for boss level
+                    enemyManager = new EnemyManager(); // Reset to empty
+                    // Spawn extra hearts for boss fight (3 hearts as required)
+                    heartManager.spawnBossArenaHearts(levelManager.getCurrentLevel(), spikeManager);
+                    // Boss will be spawned in updateBossLevel()
+                    boss = null;
+                    bossDefeated = false;
+                } else {
+                    enemyManager.spawnForLevel(levelManager.getCurrentLevel());
+                    heartManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
+                }
+                
                 spikeManager.spawnForLevel(levelManager.getCurrentLevel());
                 coinManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
-                heartManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
                 setPlayerLeftStart();
                 cameraOffsetX = 0; // Reset camera to start of new level
             } else {
@@ -361,6 +483,10 @@ public class Playing extends State implements StateMethods {
         player.resetHeartsToFull();
         player.resetBooleans();
         
+        // Reset boss state
+        boss = null;
+        bossDefeated = false;
+        
         // Reset camera to beginning
         cameraOffsetX = 0;
 
@@ -381,7 +507,17 @@ public class Playing extends State implements StateMethods {
         coinManager.draw(g, cameraOffsetX);
         heartManager.draw(g, cameraOffsetX);
         player.render(g, cameraOffsetX);
-        enemyManager.draw(g, cameraOffsetX);
+        
+        // Draw enemies or boss depending on level
+        if (levelManager.isBossLevel()) {
+            if (boss != null) {
+                boss.render(g, cameraOffsetX);
+            }
+            // Draw "BOSS ARENA" indicator
+            drawBossArenaIndicator(g);
+        } else {
+            enemyManager.draw(g, cameraOffsetX);
+        }
 
         goldUI.draw(g, gold);
         heartsUI.draw(g, player.getHearts(), player.getMaxHearts());
@@ -394,10 +530,54 @@ public class Playing extends State implements StateMethods {
         if (deathOverlay.isActive()) {
             deathOverlay.draw(g);
         }
+        
+        // Draw victory overlay on top of everything if active
+        if (victoryOverlay.isActive()) {
+            victoryOverlay.draw(g);
+        }
+    }
+    
+    /**
+     * Draw the boss arena indicator at the top of the screen.
+     */
+    private void drawBossArenaIndicator(Graphics g) {
+        if (bossDefeated) return;
+        
+        Graphics2D g2 = (Graphics2D) g;
+        
+        // Background bar
+        g2.setColor(new Color(50, 0, 50, 200));
+        int barWidth = (int)(300 * SCALE);
+        int barHeight = (int)(30 * SCALE);
+        int barX = (GAME_WIDTH - barWidth) / 2;
+        int barY = (int)(10 * SCALE);
+        g2.fillRect(barX, barY, barWidth, barHeight);
+        
+        // Border
+        g2.setColor(new Color(150, 50, 150));
+        g2.drawRect(barX, barY, barWidth, barHeight);
+        
+        // Text
+        g2.setColor(Color.WHITE);
+        g2.setFont(new Font("SansSerif", Font.BOLD, (int)(16 * SCALE)));
+        String text = "BOSS ARENA";
+        FontMetrics fm = g2.getFontMetrics();
+        int textX = barX + (barWidth - fm.stringWidth(text)) / 2;
+        int textY = barY + (barHeight + fm.getAscent()) / 2 - 2;
+        g2.drawString(text, textX, textY);
     }
 
     @Override
     public void mouseClicked(MouseEvent e) {
+        // Handle victory overlay
+        if (victoryOverlay.isActive()) {
+            if (victoryOverlay.canContinue() && e.getButton() == MouseEvent.BUTTON1) {
+                victoryOverlay.continueToMenu();
+                resetGameState();
+            }
+            return;
+        }
+        
         if (deathOverlay.isActive()) {
             // clicking also triggers respawn (after min time)
             if (deathOverlay.canRespawn() && e.getButton() == MouseEvent.BUTTON1) {
@@ -436,6 +616,15 @@ public class Playing extends State implements StateMethods {
 
     @Override
     public void keyPressed(KeyEvent e) {
+        // Handle victory overlay
+        if (victoryOverlay.isActive()) {
+            if (e.getKeyCode() == KeyEvent.VK_ENTER && victoryOverlay.canContinue()) {
+                victoryOverlay.continueToMenu();
+                resetGameState();
+            }
+            return;
+        }
+        
         // If death overlay active, pressing Enter respawns (after min show time)
         if (deathOverlay.isActive()) {
             if (e.getKeyCode() == KeyEvent.VK_ENTER && deathOverlay.canRespawn()) {
@@ -454,8 +643,8 @@ public class Playing extends State implements StateMethods {
 
     @Override
     public void keyReleased(KeyEvent e) {
-        if (deathOverlay.isActive()) {
-            // ignore other keys while dead
+        if (victoryOverlay.isActive() || deathOverlay.isActive()) {
+            // ignore other keys while in overlays
             return;
         }
 
@@ -464,5 +653,25 @@ public class Playing extends State implements StateMethods {
             case KeyEvent.VK_D, KeyEvent.VK_RIGHT -> player.setRight(false);
             case KeyEvent.VK_SPACE -> player.setJump(false);
         }
+    }
+    
+    /**
+     * Reset game state after victory or when returning to menu.
+     */
+    private void resetGameState() {
+        gold = 0;
+        boss = null;
+        bossDefeated = false;
+        levelManager.resetToFirstLevel();
+        player.loadLevelData(levelManager.getCurrentLevel().getLevelData());
+        enemyManager.spawnForLevel(levelManager.getCurrentLevel());
+        spikeManager.spawnForLevel(levelManager.getCurrentLevel());
+        coinManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
+        heartManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
+        setPlayerLeftStart();
+        player.resetHeartsToFull();
+        player.resetBooleans();
+        cameraOffsetX = 0;
+        playerDead = false;
     }
 }
