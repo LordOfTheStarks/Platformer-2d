@@ -67,6 +67,9 @@ public class Playing extends State implements StateMethods {
         coinManager = new CoinManager();
         // ensure coins do not spawn on spikes
         coinManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
+        
+        heartManager = new levels.HeartManager();
+        heartManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
 
         pauseOverlay = new PauseOverlay(game);
         deathOverlay = new DeathOverlay(game);
