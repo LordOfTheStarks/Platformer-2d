@@ -13,14 +13,36 @@ public class EnemyManager {
         enemies.clear();
 
         int[][] data = level.getLevelData();
+        int levelWidth = level.getLevelWidth();
 
         // Match player's drawn size so enemies visually match player
         int h = (int)(46.25f * Main.Game.SCALE);
         int w = (int)(62.5f * Main.Game.SCALE);
 
-        int[] xTiles = {5, 12, 20};
+        // Determine spawn positions based on level width and difficulty
+        int[] xTiles;
+        
+        if (levelWidth <= 50) {
+            // Level 1 (50 tiles): 3 enemies, spread out for tutorial
+            xTiles = new int[]{8, 24, 40};
+        } else if (levelWidth <= 55) {
+            // Level 3 (55 tiles): 4 enemies, strategic staircase positions
+            xTiles = new int[]{6, 18, 30, 46};
+        } else if (levelWidth <= 60) {
+            // Level 2 (60 tiles): 5 enemies, platform challenge
+            xTiles = new int[]{10, 20, 32, 44, 55};
+        } else if (levelWidth <= 65) {
+            // Level 4 (65 tiles): 6 enemies, gauntlet challenge
+            xTiles = new int[]{7, 16, 28, 38, 48, 60};
+        } else {
+            // Level 5 (70 tiles): 7 enemies, final challenge with more combat
+            xTiles = new int[]{8, 20, 28, 38, 48, 58, 66};
+        }
+        
         for (int i = 0; i < xTiles.length; i++) {
             int xt = xTiles[i];
+            if (xt >= levelWidth) continue; // Safety check
+            
             int yPixel = groundYPixel(data, xt);
             int variant = i % 2; // alternate between enemy1 and enemy2
             enemies.add(new Enemy(xt * Main.Game.TILES_SIZE, yPixel - h, w, h, variant, data));
