@@ -6,6 +6,11 @@ import java.util.ArrayList;
 import java.util.List;
 public class EnemyManager {
     private final List<Enemy> enemies = new ArrayList<>();
+    private final List<Projectile> projectiles = new ArrayList<>();
+    
+    // Projectile shooting cooldown
+    private long lastProjectileTime = 0;
+    private final long projectileCooldown = 2000; // 2 seconds between shots
 
     public EnemyManager() { }
 
@@ -83,10 +88,35 @@ public class EnemyManager {
         
         // Remove dead enemies
         enemies.removeIf(Enemy::isDead);
+        
+        // Shoot projectiles periodically from random enemies
+        long now = System.currentTimeMillis();
+        if (now - lastProjectileTime > projectileCooldown && !enemies.isEmpty()) {
+            // Pick a random enemy to shoot
+            int randomIndex = (int)(Math.random() * enemies.size());
+            Enemy shooter = enemies.get(randomIndex);
+            Rectangle2D.Float shooterHB = shooter.getHitBox();
+            
+            // Create projectile moving away from enemy
+            float projectileX = shooterHB.x + shooterHB.width / 2;
+            float projectileY = shooterHB.y + shooterHB.height / 2;
+            float projectileSpeed = 2.0f * Main.Game.SCALE;
+            
+            // Shoot in a direction (could be toward player, but for simplicity shoot right for now)
+            projectiles.add(new Projectile(projectileX, projectileY, projectileSpeed));
+            lastProjectileTime = now;
+        }
+        
+        // Update projectiles
+        for (Projectile p : projectiles) p.update();
+        
+        // Remove inactive projectiles
+        projectiles.removeIf(p -> !p.isActive());
     }
 
     public void draw(Graphics g, int cameraOffsetX) {
         for (Enemy e : enemies) e.render(g, cameraOffsetX);
+        for (Projectile p : projectiles) p.render(g, cameraOffsetX);
     }
 
     // simple contact check to damage player
@@ -112,5 +142,20 @@ public class EnemyManager {
                 e.takeDamage(1);
             }
         }
+    }
+    
+    /**
+     * Check if any projectiles hit the player.
+     * Returns damage dealt (1 per projectile hit).
+     */
+    public int checkProjectilePlayerCollision(Rectangle2D.Float playerHB) {
+        int damage = 0;
+        for (Projectile p : projectiles) {
+            if (p.isActive() && p.getHitBox().intersects(playerHB)) {
+                damage += p.getDamage();
+                p.deactivate();
+            }
+        }
+        return damage;
     }
 }
