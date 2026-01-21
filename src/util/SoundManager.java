@@ -101,35 +101,76 @@ public class SoundManager {
     
     /**
      * Load background music for looping playback.
+     * Handles format conversion if needed.
      */
     private static void loadBackgroundMusic() {
+        InputStream is = null;
         AudioInputStream audioStream = null;
+        
         try {
-            InputStream is = SoundManager.class.getResourceAsStream(BACKGROUND_MUSIC_PATH);
+            is = SoundManager.class.getResourceAsStream(BACKGROUND_MUSIC_PATH);
             if (is == null) {
                 System.out.println("[SoundManager] Background music not found: " + BACKGROUND_MUSIC_PATH + " (optional)");
                 return;
             }
             
             audioStream = AudioSystem.getAudioInputStream(is);
-            backgroundMusicClip = AudioSystem.getClip();
-            backgroundMusicClip.open(audioStream);
+            AudioFormat baseFormat = audioStream.getFormat();
             
-            // Set volume
-            setMusicVolume(musicVolume);
+            System.out.println("[SoundManager] Original format: " + baseFormat);
             
-            System.out.println("[SoundManager] Background music loaded successfully.");
+            // Try to convert to PCM_SIGNED 16-bit if current format is float
+            AudioInputStream streamToUse = audioStream;
+            if (baseFormat.getEncoding() == AudioFormat.Encoding.PCM_FLOAT) {
+                final int TARGET_BIT_DEPTH = 16;
+                final int BYTES_PER_SAMPLE = TARGET_BIT_DEPTH / 8; // 2 bytes for 16-bit
+                
+                AudioFormat targetFormat = new AudioFormat(
+                    AudioFormat.Encoding.PCM_SIGNED,
+                    baseFormat.getSampleRate(),
+                    TARGET_BIT_DEPTH,
+                    baseFormat.getChannels(),
+                    baseFormat.getChannels() * BYTES_PER_SAMPLE,  // frame size = channels * bytes per sample
+                    baseFormat.getSampleRate(),
+                    false  // little-endian
+                );
+                
+                if (AudioSystem.isConversionSupported(targetFormat, baseFormat)) {
+                    streamToUse = AudioSystem.getAudioInputStream(targetFormat, audioStream);
+                    System.out.println("[SoundManager] Converted to format: " + streamToUse.getFormat());
+                }
+            }
             
-        } catch (UnsupportedAudioFileException | IOException | LineUnavailableException e) {
+            // Get a clip that supports this format
+            DataLine.Info info = new DataLine.Info(Clip.class, streamToUse.getFormat());
+            if (AudioSystem.isLineSupported(info)) {
+                backgroundMusicClip = (Clip) AudioSystem.getLine(info);
+                backgroundMusicClip.open(streamToUse);
+                
+                // Set volume
+                setMusicVolume(musicVolume);
+                
+                System.out.println("[SoundManager] Background music loaded successfully.");
+            } else {
+                System.out.println("[SoundManager] Audio format not supported: " + streamToUse.getFormat());
+                System.out.println("[SoundManager] Game will continue without background music.");
+                backgroundMusicClip = null;
+            }
+            
+        // IllegalArgumentException can be thrown by AudioFormat constructor or AudioSystem methods
+        // when format parameters are invalid or unsupported
+        } catch (UnsupportedAudioFileException | IOException | LineUnavailableException | IllegalArgumentException e) {
             System.out.println("[SoundManager] Could not load background music: " + BACKGROUND_MUSIC_PATH);
+            System.out.println("[SoundManager] Reason: " + e.getMessage());
+            System.out.println("[SoundManager] Game will continue without background music.");
             backgroundMusicClip = null;
         } finally {
-            if (audioStream != null) {
-                try {
-                    audioStream.close();
-                } catch (IOException e) {
-                    // Ignore close errors
-                }
+            // Close input stream
+            try {
+                if (audioStream != null) audioStream.close();
+                if (is != null) is.close();
+            } catch (IOException e) {
+                // Ignore close errors
             }
         }
     }
