@@ -353,14 +353,16 @@ public class Playing extends State implements StateMethods {
                     // Boss will be spawned in updateBossLevel()
                     boss = null;
                     bossDefeated = false;
+                    // Use special spawn position for boss arena (avoid left wall)
+                    setBossArenaPlayerStart();
                 } else {
                     enemyManager.spawnForLevel(levelManager.getCurrentLevel());
                     heartManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
+                    setPlayerLeftStart();
                 }
                 
                 spikeManager.spawnForLevel(levelManager.getCurrentLevel());
                 coinManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
-                setPlayerLeftStart();
                 cameraOffsetX = 0; // Reset camera to start of new level
             } else {
                 GameState.state = GameState.MENU;
@@ -462,6 +464,20 @@ public class Playing extends State implements StateMethods {
         Rectangle2D.Float hb = player.getHitBox();
         hb.x = (int) (32 * SCALE);
         hb.y = (int) (100 * SCALE);
+    }
+    
+    /**
+     * Set player spawn position for boss arena.
+     * Spawns player to the right of the left wall (tiles 0-1 are walls).
+     */
+    private void setBossArenaPlayerStart() {
+        // Constants for boss arena spawn position
+        final int BOSS_ARENA_SPAWN_X_TILE = 3;        // Past the wall at tiles 0-1
+        final int BOSS_ARENA_SPAWN_Y_OFFSET_TILES = 4; // Offset from bottom of arena
+        
+        Rectangle2D.Float hb = player.getHitBox();
+        hb.x = (int) (BOSS_ARENA_SPAWN_X_TILE * TILES_SIZE + 10 * SCALE);
+        hb.y = (int) ((TILES_HEIGHT - BOSS_ARENA_SPAWN_Y_OFFSET_TILES) * TILES_SIZE);
     }
 
     private void triggerDeath() {
