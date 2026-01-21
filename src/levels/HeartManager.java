@@ -21,6 +21,11 @@ public class HeartManager {
     private final int animSpeed = 10; // ticks per frame
 
     private final List<Heart> hearts = new ArrayList<>();
+    
+    // Constants for heart placement
+    private static final float HEART_PLACEMENT_RATIO = 0.7f; // Place at 70% through level
+    private static final int HEART_Y_OFFSET = 4; // Offset above ground in Game.SCALE units
+    private static final int AIR_TILE_INDEX = 11; // Index for passable air tiles
 
     public HeartManager() {
         loadFrames();
@@ -54,7 +59,7 @@ public class HeartManager {
         
         // Place heart at approximately 70% through the level
         // This rewards players for progressing through the level
-        int targetX = (int)(levelWidth * 0.7f);
+        int targetX = (int)(levelWidth * HEART_PLACEMENT_RATIO);
         
         // Find a valid position near the target
         for (int attempt = 0; attempt < 10; attempt++) {
@@ -65,7 +70,7 @@ public class HeartManager {
             if (groundYTile == -1) continue;
 
             int px = xt * Game.TILES_SIZE + (Game.TILES_SIZE - Heart.W) / 2;
-            int py = groundYTile * Game.TILES_SIZE - Heart.H - (int)(4 * Game.SCALE);
+            int py = groundYTile * Game.TILES_SIZE - Heart.H - (int)(HEART_Y_OFFSET * Game.SCALE);
 
             if (!CanMoveHere(px, py, Heart.W, Heart.H, data)) continue;
 
@@ -91,7 +96,7 @@ public class HeartManager {
         int groundYTile = findGroundYTile(data, fallbackX);
         if (groundYTile != -1) {
             int px = fallbackX * Game.TILES_SIZE + (Game.TILES_SIZE - Heart.W) / 2;
-            int py = groundYTile * Game.TILES_SIZE - Heart.H - (int)(4 * Game.SCALE);
+            int py = groundYTile * Game.TILES_SIZE - Heart.H - (int)(HEART_Y_OFFSET * Game.SCALE);
             hearts.add(new Heart(px, py));
         }
     }
@@ -100,7 +105,7 @@ public class HeartManager {
         for (int y = 0; y < Game.TILES_HEIGHT; y++) {
             if (xTile < 0 || xTile >= data[0].length) return -1;
             int idx = data[y][xTile];
-            boolean solid = (idx != 11);
+            boolean solid = (idx != AIR_TILE_INDEX);
             if (solid) {
                 return y;
             }
