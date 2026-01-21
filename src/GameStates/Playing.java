@@ -23,6 +23,7 @@ public class Playing extends State implements StateMethods {
     private EnemyManager enemyManager;
     private SpikeManager spikeManager;
     private CoinManager coinManager;
+    private levels.HeartManager heartManager;
     private PauseOverlay pauseOverlay;
     private DeathOverlay deathOverlay;
     private boolean paused;
@@ -137,6 +138,13 @@ public class Playing extends State implements StateMethods {
         coinManager.update();
         int collected = coinManager.collectIfPlayerTouches(player.getHitBox());
         if (collected > 0) addGold(collected);
+        
+        // update and collect hearts
+        heartManager.update();
+        int heartsCollected = heartManager.collectIfPlayerTouches(player.getHitBox());
+        if (heartsCollected > 0) {
+            player.healHearts(heartsCollected);
+        }
 
         goldUI.update();
         heartsUI.update();
@@ -222,6 +230,7 @@ public class Playing extends State implements StateMethods {
                 enemyManager.spawnForLevel(levelManager.getCurrentLevel());
                 spikeManager.spawnForLevel(levelManager.getCurrentLevel());
                 coinManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
+                heartManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
                 setPlayerLeftStart();
                 cameraOffsetX = 0; // Reset camera to start of new level
             } else {
@@ -344,6 +353,7 @@ public class Playing extends State implements StateMethods {
         enemyManager.spawnForLevel(levelManager.getCurrentLevel());
         spikeManager.spawnForLevel(levelManager.getCurrentLevel());
         coinManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
+        heartManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
         setPlayerLeftStart();
         player.resetHeartsToFull();
         player.resetBooleans();
@@ -364,8 +374,9 @@ public class Playing extends State implements StateMethods {
     public void draw(Graphics g) {
         levelManager.draw(g, cameraOffsetX);
         spikeManager.draw(g, cameraOffsetX);
-        // draw coins under player (so player appears above)
+        // draw coins and hearts under player (so player appears above)
         coinManager.draw(g, cameraOffsetX);
+        heartManager.draw(g, cameraOffsetX);
         player.render(g, cameraOffsetX);
         enemyManager.draw(g, cameraOffsetX);
 
