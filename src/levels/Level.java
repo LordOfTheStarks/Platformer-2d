@@ -12,4 +12,9 @@ public class Level {
     public int[][] getLevelData(){
            return levelData;
     }
+    
+    public int getLevelWidth() {
+        if (levelData == null || levelData.length == 0) return 0;
+        return levelData[0].length;
+    }
 }

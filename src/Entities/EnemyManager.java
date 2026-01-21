@@ -40,10 +40,13 @@ public class EnemyManager {
 
     public void update() {
         for (Enemy e : enemies) e.update();
+        
+        // Remove dead enemies
+        enemies.removeIf(Enemy::isDead);
     }
 
-    public void draw(Graphics g) {
-        for (Enemy e : enemies) e.render(g);
+    public void draw(Graphics g, int cameraOffsetX) {
+        for (Enemy e : enemies) e.render(g, cameraOffsetX);
     }
 
     // simple contact check to damage player
@@ -55,5 +58,20 @@ public class EnemyManager {
             if (playerRect.intersects(enemyRect)) return true;
         }
         return false;
+    }
+    
+    // Check if player's attack hitbox hits any enemy
+    public void checkPlayerAttackCollision(Rectangle2D.Float attackHitbox) {
+        if (attackHitbox == null) return;
+        
+        Rectangle attackRect = new Rectangle((int)attackHitbox.x, (int)attackHitbox.y, 
+                                            (int)attackHitbox.width, (int)attackHitbox.height);
+        for (Enemy e : enemies) {
+            Rectangle2D.Float hb = e.getHitBox();
+            Rectangle enemyRect = new Rectangle((int)hb.x, (int)hb.y, (int)hb.width, (int)hb.height);
+            if (attackRect.intersects(enemyRect)) {
+                e.takeDamage(1);
+            }
+        }
     }
 }

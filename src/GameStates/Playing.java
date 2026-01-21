@@ -43,6 +43,9 @@ public class Playing extends State implements StateMethods {
 
     // Track whether player was in-air last frame — used to detect landing events reliably
     private boolean prevInAir = false;
+    
+    // Camera system for side-scrolling
+    private int cameraOffsetX = 0;
 
     public Playing(Game game) {
         super(game);
@@ -114,9 +117,20 @@ public class Playing extends State implements StateMethods {
 
         levelManager.update();
         player.update();
+        
+        // Update camera position to follow player
+        updateCamera();
+        
         enemyManager.update();
         spikeManagerUpdateAndCheck();
         enemyContactDamageCheck();
+        
+        // Check player attack collision with enemies
+        if (player.isAttacking()) {
+            Rectangle2D.Float attackHitbox = player.getAttackHitbox();
+            enemyManager.checkPlayerAttackCollision(attackHitbox);
+        }
+        
         pauseOverlay.update();
 
         // update and collect coins
@@ -133,6 +147,25 @@ public class Playing extends State implements StateMethods {
         // update previous-bottom and prevInAir trackers for next frame
         prevPlayerBottom = playerBottom();
         prevInAir = player.isInAir();
+    }
+    
+    /**
+     * Update camera position to follow the player with smooth scrolling.
+     * Camera centers on player horizontally but respects level boundaries.
+     */
+    private void updateCamera() {
+        Rectangle2D.Float playerHB = player.getHitBox();
+        int playerCenterX = (int)(playerHB.x + playerHB.width / 2);
+        
+        // Center camera on player
+        int desiredCameraX = playerCenterX - GAME_WIDTH / 2;
+        
+        // Get level width
+        int levelWidth = levelManager.getCurrentLevel().getLevelWidth() * TILES_SIZE;
+        
+        // Clamp camera to level boundaries
+        int maxCameraX = levelWidth - GAME_WIDTH;
+        cameraOffsetX = Math.max(0, Math.min(desiredCameraX, maxCameraX));
     }
 
     private void enemyContactDamageCheck() {
@@ -155,7 +188,11 @@ public class Playing extends State implements StateMethods {
     }
 
     private void handleBorderTransitions() {
-        int threshold = GAME_WIDTH - (TILES_SIZE / 4);
+        // Get the level width
+        int levelWidth = levelManager.getCurrentLevel().getLevelWidth() * TILES_SIZE;
+        
+        // Transition when player reaches near the right edge of the level
+        int threshold = levelWidth - (TILES_SIZE / 4);
         if (playerRight() >= threshold) {
             if (!levelManager.isLastLevel()) {
                 levelManager.nextLevel();
@@ -164,6 +201,7 @@ public class Playing extends State implements StateMethods {
                 spikeManager.spawnForLevel(levelManager.getCurrentLevel());
                 coinManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
                 setPlayerLeftStart();
+                cameraOffsetX = 0; // Reset camera to start of new level
             } else {
                 GameState.state = GameState.MENU;
             }
@@ -284,6 +322,9 @@ public class Playing extends State implements StateMethods {
         setPlayerLeftStart();
         player.resetHeartsToFull();
         player.resetBooleans();
+        
+        // Reset camera to beginning
+        cameraOffsetX = 0;
 
         // Clear death overlay and resume
         playerDead = false;
@@ -296,12 +337,12 @@ public class Playing extends State implements StateMethods {
 
     @Override
     public void draw(Graphics g) {
-        levelManager.draw(g);
-        spikeManager.draw(g);
+        levelManager.draw(g, cameraOffsetX);
+        spikeManager.draw(g, cameraOffsetX);
         // draw coins under player (so player appears above)
-        coinManager.draw(g);
-        player.render(g);
-        enemyManager.draw(g);
+        coinManager.draw(g, cameraOffsetX);
+        player.render(g, cameraOffsetX);
+        enemyManager.draw(g, cameraOffsetX);
 
         goldUI.draw(g, gold);
         heartsUI.draw(g, player.getHearts(), player.getMaxHearts());

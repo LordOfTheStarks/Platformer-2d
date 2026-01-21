@@ -54,17 +54,24 @@ public class LevelManager {
         levels.add(new Level(LevelFactory.level5()));
     }
 
-    public void draw(Graphics g){
+    public void draw(Graphics g, int cameraOffsetX){
         // Layered game backgrounds fullscreen
         drawFullscreen(g, gameBg0);
         drawFullscreen(g, gameBg1);
 
-        // Draw current level tiles
+        // Draw current level tiles with camera offset
         Level current = getCurrentLevel();
-        for(int i = 0; i<Game.TILES_HEIGHT;i++){
-            for(int j = 0; j<Game.TILES_WIDTH; j++){
-                int index = current.getSpriteIndex(i,j);
-                g.drawImage(levelSprite[index],TILES_SIZE*j,TILES_SIZE*i,TILES_SIZE,TILES_SIZE,null);
+        int levelWidth = current.getLevelWidth();
+        
+        // Calculate visible tile range based on camera
+        int startTileX = Math.max(0, cameraOffsetX / TILES_SIZE);
+        int endTileX = Math.min(levelWidth, (cameraOffsetX + GAME_WIDTH) / TILES_SIZE + 2);
+        
+        for(int i = 0; i < Game.TILES_HEIGHT; i++){
+            for(int j = startTileX; j < endTileX && j < levelWidth; j++){
+                int index = current.getSpriteIndex(i, j);
+                int drawX = TILES_SIZE * j - cameraOffsetX;
+                g.drawImage(levelSprite[index], drawX, TILES_SIZE * i, TILES_SIZE, TILES_SIZE, null);
             }
         }
     }

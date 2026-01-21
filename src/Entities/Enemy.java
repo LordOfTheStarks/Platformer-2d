@@ -17,6 +17,9 @@ public class Enemy extends Entity {
     // movement expressed as continuous xSpeed (sub-pixel)
     private float xSpeed;
     private float baseSpeed = 0.5f * Game.SCALE;
+    
+    // Health system
+    private int health = 1;
 
     // Animation frames per variant
     private static BufferedImage[][] enemyFrames; // [variant][frameIndex]
@@ -186,17 +189,17 @@ public class Enemy extends Entity {
         }
     }
 
-    public void render(Graphics g) {
+    public void render(Graphics g, int cameraOffsetX) {
         // If images aren't available draw fallback rectangle
         if (!imagesAvailable || enemyFrames == null) {
-            drawFallback(g);
+            drawFallback(g, cameraOffsetX);
             return;
         }
 
         BufferedImage[] frames = variant < enemyFrames.length ? enemyFrames[variant] : null;
         BufferedImage[] framesFlipped = variant < enemyFramesFlipped.length ? enemyFramesFlipped[variant] : null;
         if (frames == null || frames.length == 0 || frames[0] == null) {
-            drawFallback(g);
+            drawFallback(g, cameraOffsetX);
             return;
         }
 
@@ -204,7 +207,7 @@ public class Enemy extends Entity {
         BufferedImage srcImg = (xSpeed >= 0) ? frames[frameIdx] : (framesFlipped != null ? framesFlipped[frameIdx] : frames[frameIdx]);
 
         if (srcImg == null) {
-            drawFallback(g);
+            drawFallback(g, cameraOffsetX);
             return;
         }
 
@@ -218,7 +221,7 @@ public class Enemy extends Entity {
         // Compute scale to fit the sprite inside the target box while preserving aspect ratio
         float scale = Math.min((float) targetW / srcW, (float) targetH / srcH);
         if (scale <= 0f) {
-            drawFallback(g);
+            drawFallback(g, cameraOffsetX);
             return;
         }
 
@@ -226,16 +229,16 @@ public class Enemy extends Entity {
         int drawH = Math.max(1, Math.round(srcH * scale));
 
         // Bottom-align sprite to the enemy's hitbox bottom
-        int drawX = (int) hitBox.x + ((int)hitBox.width - drawW) / 2;
+        int drawX = (int) hitBox.x + ((int)hitBox.width - drawW) / 2 - cameraOffsetX;
         int drawY = (int) (hitBox.y + hitBox.height - drawH);
 
         g.drawImage(srcImg, drawX, drawY, drawW, drawH, null);
     }
 
-    private void drawFallback(Graphics g) {
+    private void drawFallback(Graphics g, int cameraOffsetX) {
         // Visible debugging fallback: colored rectangle with "E" label so you can see enemies
         g.setColor(new Color(200, 40, 40));
-        int x = Math.max(0, (int) hitBox.x);
+        int x = Math.max(0, (int) hitBox.x - cameraOffsetX);
         int y = Math.max(0, (int) hitBox.y);
         int w = Math.max(8, (int) hitBox.width);
         int h = Math.max(8, (int) hitBox.height);
@@ -248,6 +251,20 @@ public class Enemy extends Entity {
         int tx = x + (w - fm.stringWidth(s)) / 2;
         int ty = y + (h + fm.getAscent()) / 2 - 2;
         g.drawString(s, tx, ty);
+    }
+    
+    // Health API
+    public void takeDamage(int amount) {
+        if (amount <= 0) return;
+        health = Math.max(0, health - amount);
+    }
+    
+    public boolean isDead() {
+        return health <= 0;
+    }
+    
+    public int getHealth() {
+        return health;
     }
 }
 

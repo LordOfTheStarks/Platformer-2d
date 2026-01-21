@@ -48,9 +48,11 @@ public class Player extends Entity{
         setAnimation();
     }
 
-    public void render(Graphics g){
-        g.drawImage(animations.get(currentAction)[index], (int)hitBox.x - (int)offsetX, (int)(hitBox.y) - (int)offsetY, width, height, null);
-        // drawHitBox(g);
+    public void render(Graphics g, int cameraOffsetX){
+        int drawX = (int)hitBox.x - (int)offsetX - cameraOffsetX;
+        int drawY = (int)hitBox.y - (int)offsetY;
+        g.drawImage(animations.get(currentAction)[index], drawX, drawY, width, height, null);
+        // drawHitBox(g, cameraOffsetX);
     }
 
     public boolean isInAir() {
@@ -301,5 +303,36 @@ public class Player extends Entity{
         setRight(false);
         setLeft(false);
         setJump(false);
+    }
+    
+    // Attack system
+    public boolean isAttacking() {
+        return attacking;
+    }
+    
+    /**
+     * Returns the attack hitbox when the player is attacking, null otherwise.
+     * The hitbox is positioned in front of the player based on facing direction.
+     * Size: approximately 30x40 pixels scaled.
+     */
+    public Rectangle2D.Float getAttackHitbox() {
+        if (!attacking) return null;
+        
+        int attackW = (int)(30 * Game.SCALE);
+        int attackH = (int)(40 * Game.SCALE);
+        
+        float attackX;
+        if (mirror) {
+            // Facing left - attack hitbox to the left of player
+            attackX = hitBox.x - attackW;
+        } else {
+            // Facing right - attack hitbox to the right of player
+            attackX = hitBox.x + hitBox.width;
+        }
+        
+        // Vertically centered on player hitbox
+        float attackY = hitBox.y + (hitBox.height - attackH) / 2;
+        
+        return new Rectangle2D.Float(attackX, attackY, attackW, attackH);
     }
 }
