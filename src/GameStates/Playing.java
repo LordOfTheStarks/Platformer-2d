@@ -1,5 +1,6 @@
 package GameStates;
 
+import Entities.Boss;
 import Entities.EnemyManager;
 import Entities.Player;
 import Main.Game;
@@ -8,6 +9,7 @@ import levels.SpikeManager;
 import ui.GoldUI;
 import ui.HeartsUI;
 import ui.DeathOverlay;
+import ui.VictoryOverlay;
 
 import java.awt.*;
 import java.awt.event.KeyEvent;
@@ -26,7 +28,12 @@ public class Playing extends State implements StateMethods {
     private levels.HeartManager heartManager;
     private PauseOverlay pauseOverlay;
     private DeathOverlay deathOverlay;
+    private VictoryOverlay victoryOverlay;
     private boolean paused;
+    
+    // Boss system
+    private Boss boss;
+    private boolean bossDefeated = false;
 
     private int gold = 0;
     private final GoldUI goldUI = new GoldUI();
@@ -47,6 +54,12 @@ public class Playing extends State implements StateMethods {
     
     // Camera system for side-scrolling
     private int cameraOffsetX = 0;
+    
+    // Background music started flag
+    private boolean musicStarted = false;
+    
+    // Developer tools
+    private boolean devImmunity = false;  // Toggle with F1 - makes player immune to damage
 
     public Playing(Game game) {
         super(game);
@@ -73,10 +86,21 @@ public class Playing extends State implements StateMethods {
 
         pauseOverlay = new PauseOverlay(game);
         deathOverlay = new DeathOverlay(game);
+        victoryOverlay = new VictoryOverlay(game);
+        
+        // Boss starts as null (spawned when entering boss level)
+        boss = null;
+        bossDefeated = false;
 
         // initialize trackers
         prevPlayerBottom = playerBottom();
         prevInAir = player.isInAir();
+        
+        // Start background music
+        if (!musicStarted) {
+            util.SoundManager.startBackgroundMusic();
+            musicStarted = true;
+        }
     }
 
     public void windowFocusLost() {
@@ -113,6 +137,12 @@ public class Playing extends State implements StateMethods {
 
     @Override
     public void update() {
+        // If victory overlay active, only update overlay
+        if (victoryOverlay.isActive()) {
+            victoryOverlay.update();
+            return;
+        }
+        
         // If death overlay active, only update overlay (freeze game world)
         if (deathOverlay.isActive()) {
             deathOverlay.update();
@@ -125,14 +155,28 @@ public class Playing extends State implements StateMethods {
         // Update camera position to follow player
         updateCamera();
         
-        enemyManager.update();
-        spikeManagerUpdateAndCheck();
-        enemyContactDamageCheck();
+        // Handle boss level differently
+        if (levelManager.isBossLevel()) {
+            updateBossLevel();
+        } else {
+            enemyManager.update();
+            enemyContactDamageCheck();
+        }
         
-        // Check player attack collision with enemies
-        if (player.isAttacking()) {
+        spikeManagerUpdateAndCheck();
+        
+        // Check player attack collision with enemies (non-boss levels)
+        if (player.isAttacking() && !levelManager.isBossLevel()) {
             Rectangle2D.Float attackHitbox = player.getAttackHitbox();
             enemyManager.checkPlayerAttackCollision(attackHitbox);
+        }
+        
+        // Check player attack collision with boss
+        if (player.isAttacking() && boss != null && !boss.isDying()) {
+            Rectangle2D.Float attackHitbox = player.getAttackHitbox();
+            if (attackHitbox != null && boss.getHitBox().intersects(attackHitbox)) {
+                boss.takeDamage(1);
+            }
         }
         
         pauseOverlay.update();
@@ -158,6 +202,72 @@ public class Playing extends State implements StateMethods {
         // update previous-bottom and prevInAir trackers for next frame
         prevPlayerBottom = playerBottom();
         prevInAir = player.isInAir();
+    }
+    
+    /**
+     * Update logic specific to the boss level.
+     */
+    private void updateBossLevel() {
+        // Spawn boss if not already spawned
+        if (boss == null && !bossDefeated) {
+            spawnBoss();
+        }
+        
+        // Update boss
+        if (boss != null) {
+            boss.setPlayerHitBox(player.getHitBox());
+            boss.update();
+            
+            // Check if boss is dead
+            if (boss.isDead()) {
+                bossDefeated = true;
+                boss = null;
+                triggerVictory();
+                return;
+            }
+            
+            // Check boss damage to player
+            long now = System.currentTimeMillis();
+            
+            // Boss contact damage (1 heart)
+            if (!boss.isDying() && boss.collidesWithPlayer(player.getHitBox())) {
+                applyDamageToPlayer(1, now);
+            }
+            
+            // Boss projectile damage (1 heart each)
+            int projectileDamage = boss.checkProjectilePlayerCollision(player.getHitBox());
+            if (projectileDamage > 0) {
+                applyDamageToPlayer(projectileDamage, now);
+            }
+        }
+    }
+    
+    /**
+     * Spawn the boss in the boss arena.
+     */
+    private void spawnBoss() {
+        // Boss spawn position constants (tiles from edge)
+        final int BOSS_SPAWN_OFFSET_X_TILES = 10;
+        final int BOSS_SPAWN_OFFSET_Y_TILES = 5;
+        
+        int[][] levelData = levelManager.getCurrentLevel().getLevelData();
+        int levelWidth = levelManager.getCurrentLevel().getLevelWidth();
+        
+        // Spawn boss on the right side of the arena
+        int bossX = (levelWidth - BOSS_SPAWN_OFFSET_X_TILES) * TILES_SIZE;
+        int bossY = (TILES_HEIGHT - BOSS_SPAWN_OFFSET_Y_TILES) * TILES_SIZE;
+        
+        int bossW = (int)(60 * SCALE);
+        int bossH = (int)(50 * SCALE);
+        
+        boss = new Boss(bossX, bossY, bossW, bossH, levelData);
+    }
+    
+    /**
+     * Trigger victory when boss is defeated.
+     */
+    private void triggerVictory() {
+        victoryOverlay.activate();
     }
     
     /**
@@ -196,8 +306,12 @@ public class Playing extends State implements StateMethods {
     
     /**
      * Apply damage to the player with cooldown check.
+     * Respects dev immunity mode.
      */
     private void applyDamageToPlayer(int damage, long currentTime) {
+        // Skip damage if dev immunity is active
+        if (devImmunity) return;
+        
         if (currentTime - lastDamageMs > damageCooldownMs) {
             player.takeHeartDamage(damage);
             lastDamageMs = currentTime;
@@ -208,6 +322,9 @@ public class Playing extends State implements StateMethods {
     }
 
     private void spikeManagerUpdateAndCheck() {
+        // Skip spike damage if dev immunity is active
+        if (devImmunity) return;
+        
         long now = System.currentTimeMillis();
         if (spikeManager.isPlayerOnSpike(player.getHitBox())) {
             if (now - lastDamageMs > damageCooldownMs) {
@@ -221,6 +338,12 @@ public class Playing extends State implements StateMethods {
     }
 
     private void handleBorderTransitions() {
+        // Don't allow transition out of boss arena unless boss is defeated
+        if (levelManager.isBossLevel()) {
+            // Boss level has walls - no transition
+            return;
+        }
+        
         // Get the level width
         int levelWidth = levelManager.getCurrentLevel().getLevelWidth() * TILES_SIZE;
         
@@ -230,11 +353,26 @@ public class Playing extends State implements StateMethods {
             if (!levelManager.isLastLevel()) {
                 levelManager.nextLevel();
                 player.loadLevelData(levelManager.getCurrentLevel().getLevelData());
-                enemyManager.spawnForLevel(levelManager.getCurrentLevel());
+                
+                // Check if entering boss level
+                if (levelManager.isBossLevel()) {
+                    // Clear regular enemies for boss level
+                    enemyManager = new EnemyManager(); // Reset to empty
+                    // Spawn extra hearts for boss fight (3 hearts as required)
+                    heartManager.spawnBossArenaHearts(levelManager.getCurrentLevel(), spikeManager);
+                    // Boss will be spawned in updateBossLevel()
+                    boss = null;
+                    bossDefeated = false;
+                    // Use special spawn position for boss arena (avoid left wall)
+                    setBossArenaPlayerStart();
+                } else {
+                    enemyManager.spawnForLevel(levelManager.getCurrentLevel());
+                    heartManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
+                    setPlayerLeftStart();
+                }
+                
                 spikeManager.spawnForLevel(levelManager.getCurrentLevel());
                 coinManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
-                heartManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
-                setPlayerLeftStart();
                 cameraOffsetX = 0; // Reset camera to start of new level
             } else {
                 GameState.state = GameState.MENU;
@@ -243,81 +381,20 @@ public class Playing extends State implements StateMethods {
     }
 
     /**
-     * Pit death handling for level 2:
-     * - Only applies in level 2 (index 1).
-     * - Only triggers death when the player just landed (prevInAir == true && current inAir == false)
-     *   within the pit columns and the landing point is below the platform height.
+     * Handle death when player falls off the map (through gaps or below screen).
+     * Works on all levels - triggers death when player falls below the visible area.
      */
     private void handlePitDeath() {
-        int currentIdx = levelManager.getCurrentLevelIndex();
-        if (currentIdx == 1 && !playerDead) {
-            Rectangle2D.Float hb = player.getHitBox();
-            int centerX = (int) (hb.x + hb.width / 2);
-            int xt = centerX / TILES_SIZE;
-            int[][] data = levelManager.getCurrentLevel().getLevelData();
-            int levelWidth = levelManager.getCurrentLevel().getLevelWidth();
-
-            if (data != null && xt >= 0 && xt < levelWidth) {
-                // Pit center derived from LevelFactory.level2 layout (now at tile 30 for 60-tile level)
-                int pitCenter = 30;
-                int pitLeft = pitCenter - 3;
-                int pitRight = pitCenter + 3;
-
-                // Only consider when player's horizontal center is over the pit columns
-                if (xt >= pitLeft && xt <= pitRight) {
-                    // Platform columns bridging the pit (per LevelFactory.level2)
-                    int leftPlatformStart = pitCenter - 5;
-                    int leftPlatformEnd = pitCenter - 1;
-                    int rightPlatformStart = pitCenter + 1;
-                    int rightPlatformEnd = pitCenter + 5;
-
-                    // Find the platform row by scanning those platform columns and
-                    // taking the deepest topmost solid among them; that represents platform height.
-                    int platformRow = Integer.MIN_VALUE;
-                    for (int x = leftPlatformStart; x <= leftPlatformEnd; x++) {
-                        if (x < 0 || x >= levelWidth) continue;
-                        for (int y = 0; y < Game.TILES_HEIGHT; y++) {
-                            if (data[y][x] != util.LevelFactory.AIR) {
-                                if (y > platformRow) platformRow = y;
-                                break;
-                            }
-                        }
-                    }
-                    for (int x = rightPlatformStart; x <= rightPlatformEnd; x++) {
-                        if (x < 0 || x >= levelWidth) continue;
-                        for (int y = 0; y < Game.TILES_HEIGHT; y++) {
-                            if (data[y][x] != util.LevelFactory.AIR) {
-                                if (y > platformRow) platformRow = y;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (platformRow == Integer.MIN_VALUE) {
-                        platformRow = Game.TILES_HEIGHT - 1; // fallback
-                    }
-
-                    // death threshold (pixels). Add a small margin so jumping over remains safe.
-                    int deathThresholdY = platformRow * TILES_SIZE + (TILES_SIZE / 2);
-
-                    int currBottom = playerBottom();
-                    boolean currInAir = player.isInAir();
-
-                    // Trigger death only when player was in-air last frame and is now not in-air (landed),
-                    // AND the landing is below the death threshold.
-                    if (prevInAir && !currInAir && currBottom > deathThresholdY) {
-                        triggerDeath();
-                        return;
-                    } else {
-                        // Player hasn't landed into the pit yet → safe
-                        return;
-                    }
-                }
-            }
-        }
-
-        // Fallback: if player falls far below the bottom of the screen, trigger death
-        if (playerBottom() > GAME_HEIGHT + 200 && !playerDead) {
+        if (playerDead) return;
+        
+        // Skip pit death if dev immunity is active
+        if (devImmunity) return;
+        
+        // Death threshold: past the very bottom of the visible game area
+        // GAME_HEIGHT is the full height, so death triggers just past that
+        int deathThreshold = GAME_HEIGHT + 10;
+        
+        if (playerBottom() > deathThreshold) {
             triggerDeath();
         }
     }
@@ -336,6 +413,20 @@ public class Playing extends State implements StateMethods {
         Rectangle2D.Float hb = player.getHitBox();
         hb.x = (int) (32 * SCALE);
         hb.y = (int) (100 * SCALE);
+    }
+    
+    /**
+     * Set player spawn position for boss arena.
+     * Spawns player to the right of the left wall (tiles 0-1 are walls).
+     */
+    private void setBossArenaPlayerStart() {
+        // Constants for boss arena spawn position
+        final int BOSS_ARENA_SPAWN_X_TILE = 3;        // Past the wall at tiles 0-1
+        final int BOSS_ARENA_SPAWN_Y_OFFSET_TILES = 4; // Offset from bottom of arena
+        
+        Rectangle2D.Float hb = player.getHitBox();
+        hb.x = (int) (BOSS_ARENA_SPAWN_X_TILE * TILES_SIZE + 10 * SCALE);
+        hb.y = (int) ((TILES_HEIGHT - BOSS_ARENA_SPAWN_Y_OFFSET_TILES) * TILES_SIZE);
     }
 
     private void triggerDeath() {
@@ -361,6 +452,10 @@ public class Playing extends State implements StateMethods {
         player.resetHeartsToFull();
         player.resetBooleans();
         
+        // Reset boss state
+        boss = null;
+        bossDefeated = false;
+        
         // Reset camera to beginning
         cameraOffsetX = 0;
 
@@ -381,10 +476,25 @@ public class Playing extends State implements StateMethods {
         coinManager.draw(g, cameraOffsetX);
         heartManager.draw(g, cameraOffsetX);
         player.render(g, cameraOffsetX);
-        enemyManager.draw(g, cameraOffsetX);
+        
+        // Draw enemies or boss depending on level
+        if (levelManager.isBossLevel()) {
+            if (boss != null) {
+                boss.render(g, cameraOffsetX);
+            }
+            // Draw "BOSS ARENA" indicator
+            drawBossArenaIndicator(g);
+        } else {
+            enemyManager.draw(g, cameraOffsetX);
+        }
 
         goldUI.draw(g, gold);
         heartsUI.draw(g, player.getHearts(), player.getMaxHearts());
+        
+        // Draw dev immunity indicator if active
+        if (devImmunity) {
+            drawDevModeIndicator(g);
+        }
 
         if (paused) {
             pauseOverlay.draw(g);
@@ -394,10 +504,85 @@ public class Playing extends State implements StateMethods {
         if (deathOverlay.isActive()) {
             deathOverlay.draw(g);
         }
+        
+        // Draw victory overlay on top of everything if active
+        if (victoryOverlay.isActive()) {
+            victoryOverlay.draw(g);
+        }
+    }
+    
+    /**
+     * Draw the boss arena indicator at the top of the screen.
+     */
+    private void drawBossArenaIndicator(Graphics g) {
+        if (bossDefeated) return;
+        
+        Graphics2D g2 = (Graphics2D) g;
+        
+        // Background bar
+        g2.setColor(new Color(50, 0, 50, 200));
+        int barWidth = (int)(300 * SCALE);
+        int barHeight = (int)(30 * SCALE);
+        int barX = (GAME_WIDTH - barWidth) / 2;
+        int barY = (int)(10 * SCALE);
+        g2.fillRect(barX, barY, barWidth, barHeight);
+        
+        // Border
+        g2.setColor(new Color(150, 50, 150));
+        g2.drawRect(barX, barY, barWidth, barHeight);
+        
+        // Text
+        g2.setColor(Color.WHITE);
+        g2.setFont(new Font("SansSerif", Font.BOLD, (int)(16 * SCALE)));
+        String text = "BOSS ARENA";
+        FontMetrics fm = g2.getFontMetrics();
+        int textX = barX + (barWidth - fm.stringWidth(text)) / 2;
+        int textY = barY + (barHeight + fm.getAscent()) / 2 - 2;
+        g2.drawString(text, textX, textY);
+    }
+    
+    /**
+     * Draw the developer mode indicator when immunity is active.
+     */
+    private void drawDevModeIndicator(Graphics g) {
+        Graphics2D g2 = (Graphics2D) g;
+        
+        // Draw in top-right corner
+        int padding = (int)(10 * SCALE);
+        int boxWidth = (int)(150 * SCALE);
+        int boxHeight = (int)(25 * SCALE);
+        int boxX = GAME_WIDTH - boxWidth - padding;
+        int boxY = padding;
+        
+        // Semi-transparent green background
+        g2.setColor(new Color(0, 150, 0, 180));
+        g2.fillRect(boxX, boxY, boxWidth, boxHeight);
+        
+        // Border
+        g2.setColor(new Color(0, 255, 0));
+        g2.drawRect(boxX, boxY, boxWidth, boxHeight);
+        
+        // Text
+        g2.setColor(Color.WHITE);
+        g2.setFont(new Font("SansSerif", Font.BOLD, (int)(12 * SCALE)));
+        String text = "DEV: IMMUNITY ON";
+        FontMetrics fm = g2.getFontMetrics();
+        int textX = boxX + (boxWidth - fm.stringWidth(text)) / 2;
+        int textY = boxY + (boxHeight + fm.getAscent()) / 2 - 2;
+        g2.drawString(text, textX, textY);
     }
 
     @Override
     public void mouseClicked(MouseEvent e) {
+        // Handle victory overlay
+        if (victoryOverlay.isActive()) {
+            if (victoryOverlay.canContinue() && e.getButton() == MouseEvent.BUTTON1) {
+                victoryOverlay.continueToMenu();
+                resetGameState();
+            }
+            return;
+        }
+        
         if (deathOverlay.isActive()) {
             // clicking also triggers respawn (after min time)
             if (deathOverlay.canRespawn() && e.getButton() == MouseEvent.BUTTON1) {
@@ -436,6 +621,15 @@ public class Playing extends State implements StateMethods {
 
     @Override
     public void keyPressed(KeyEvent e) {
+        // Handle victory overlay
+        if (victoryOverlay.isActive()) {
+            if (e.getKeyCode() == KeyEvent.VK_ENTER && victoryOverlay.canContinue()) {
+                victoryOverlay.continueToMenu();
+                resetGameState();
+            }
+            return;
+        }
+        
         // If death overlay active, pressing Enter respawns (after min show time)
         if (deathOverlay.isActive()) {
             if (e.getKeyCode() == KeyEvent.VK_ENTER && deathOverlay.canRespawn()) {
@@ -449,13 +643,18 @@ public class Playing extends State implements StateMethods {
             case KeyEvent.VK_D, KeyEvent.VK_RIGHT -> player.setRight(true);
             case KeyEvent.VK_SPACE -> player.setJump(true);
             case KeyEvent.VK_ESCAPE -> paused = !paused;
+            // Developer tools
+            case KeyEvent.VK_F1 -> {
+                devImmunity = !devImmunity;
+                System.out.println("[DEV] Immunity " + (devImmunity ? "ENABLED" : "DISABLED"));
+            }
         }
     }
 
     @Override
     public void keyReleased(KeyEvent e) {
-        if (deathOverlay.isActive()) {
-            // ignore other keys while dead
+        if (victoryOverlay.isActive() || deathOverlay.isActive()) {
+            // ignore other keys while in overlays
             return;
         }
 
@@ -464,5 +663,25 @@ public class Playing extends State implements StateMethods {
             case KeyEvent.VK_D, KeyEvent.VK_RIGHT -> player.setRight(false);
             case KeyEvent.VK_SPACE -> player.setJump(false);
         }
+    }
+    
+    /**
+     * Reset game state after victory or when returning to menu.
+     */
+    private void resetGameState() {
+        gold = 0;
+        boss = null;
+        bossDefeated = false;
+        levelManager.resetToFirstLevel();
+        player.loadLevelData(levelManager.getCurrentLevel().getLevelData());
+        enemyManager.spawnForLevel(levelManager.getCurrentLevel());
+        spikeManager.spawnForLevel(levelManager.getCurrentLevel());
+        coinManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
+        heartManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
+        setPlayerLeftStart();
+        player.resetHeartsToFull();
+        player.resetBooleans();
+        cameraOffsetX = 0;
+        playerDead = false;
     }
 }

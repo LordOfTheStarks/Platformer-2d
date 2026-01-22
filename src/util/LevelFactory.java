@@ -226,6 +226,75 @@ public class LevelFactory {
         return l;
     }
 
+    /**
+     * Level 6 - Boss Arena
+     * Width: ~45 tiles, enclosed arena for boss fight
+     * Features:
+     * - Complex arena with multiple platforms for dodging
+     * - 3+ heart pickups placed strategically
+     * - Boss spawns in center-right area
+     * - Walls on both sides to keep player in arena
+     */
+    public static int[][] bossArena() {
+        int H = Game.TILES_HEIGHT;
+        int W = 45; // Compact arena for intense boss fight
+        int[][] l = fill(H, W, AIR);
+
+        // Solid ground floor for the entire arena
+        for (int x = 0; x < W; x++) {
+            l[H-1][x] = GROUND;
+            l[H-2][x] = GROUND; // Thicker floor
+        }
+        
+        // Left wall (entrance area)
+        for (int y = 0; y < H-2; y++) {
+            l[y][0] = GROUND;
+            l[y][1] = GROUND;
+        }
+        
+        // Right wall (prevents escape)
+        for (int y = 0; y < H-2; y++) {
+            l[y][W-1] = GROUND;
+            l[y][W-2] = GROUND;
+        }
+        
+        // === Combat platforms for tactical movement ===
+        
+        // Left side platforms (player starting area)
+        for (int x = 4; x <= 8; x++) l[H-4][x] = PLATFORM;      // Low left platform
+        for (int x = 5; x <= 7; x++) l[H-7][x] = PLATFORM;      // High left platform
+        
+        // Center platforms (main combat area)
+        for (int x = 14; x <= 18; x++) l[H-5][x] = PLATFORM;    // Center-left
+        for (int x = 20; x <= 24; x++) l[H-7][x] = PLATFORM;    // Center high (good for dodging)
+        for (int x = 26; x <= 30; x++) l[H-5][x] = PLATFORM;    // Center-right
+        
+        // Right side platforms (boss territory) - shifted right to avoid boss spawn overlap
+        for (int x = 39; x <= 41; x++) l[H-4][x] = PLATFORM;    // Low right platform
+        for (int x = 40; x <= 42; x++) l[H-8][x] = PLATFORM;    // High right platform
+        
+        // Additional elevated platforms for vertical gameplay
+        for (int x = 10; x <= 12; x++) l[H-9][x] = PLATFORM;    // Upper left
+        for (int x = 32; x <= 34; x++) l[H-9][x] = PLATFORM;    // Upper right
+        
+        // Center top platform (strategic position)
+        for (int x = 19; x <= 25; x++) l[H-10][x] = PLATFORM;   // Very high center
+        
+        // Small stepping platforms for mobility
+        l[H-6][11] = PLATFORM;  // Step between left platforms
+        l[H-6][33] = PLATFORM;  // Step between right platforms
+        
+        // Pillars for cover (2 tile wide, 3 tiles tall)
+        for (int y = H-5; y < H-2; y++) {
+            l[y][16] = GROUND;  // Left pillar
+            l[y][17] = GROUND;
+            l[y][27] = GROUND;  // Right pillar
+            l[y][28] = GROUND;
+        }
+        
+        return l;
+    }
+
     private static int[][] fill(int H, int W, int value) {
         int[][] a = new int[H][W];
         for (int i = 0; i < H; i++) {

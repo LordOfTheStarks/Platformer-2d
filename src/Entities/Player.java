@@ -16,7 +16,7 @@ public class Player extends Entity{
     private static ArrayList<BufferedImage[]> animations = new ArrayList<>();
 
     private int tick,index,speed= 30;
-    private int attackSpeed = 15; // Faster animation speed for attacks
+    private int attackSpeed = 10; // Attack animation speed (was 5, user requested 10)
     private int currentAction = RUNNING;
     private boolean moving = false,attacking = false, mirror = false;
     private boolean left,right,jump,inAir = false;
@@ -27,7 +27,7 @@ public class Player extends Entity{
     private float offsetX = 21* Game.SCALE , offsetY = 4*Game.SCALE;
     private float airSpeed = 0;
     private float gravity = 0.04f * Game.SCALE;
-    private float jumpSpeed = -2.8f * Game.SCALE; // Increased for better platforming
+    private float jumpSpeed = -2.5f * Game.SCALE; // Reduced by ~10% for lower jumps (was -2.8f)
     private float xSpeed;
 
     // Double jump
@@ -325,13 +325,14 @@ public class Player extends Entity{
     /**
      * Returns the attack hitbox when the player is attacking, null otherwise.
      * The hitbox is positioned in front of the player based on facing direction.
-     * Size: approximately 30x40 pixels scaled.
+     * Size: approximately 50x45 pixels scaled (increased for better reach).
      */
     public Rectangle2D.Float getAttackHitbox() {
         if (!attacking) return null;
         
-        int attackW = (int)(30 * Game.SCALE);
-        int attackH = (int)(40 * Game.SCALE);
+        // Increased attack reach: 50 wide (was 30), 45 tall (was 40)
+        int attackW = (int)(50 * Game.SCALE);
+        int attackH = (int)(45 * Game.SCALE);
         
         float attackX;
         if (mirror) {

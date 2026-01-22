@@ -46,12 +46,20 @@ public class LevelManager {
     }
 
     private void loadLevels() {
-        // Build 5 levels programmatically (no PNG authoring needed)
+        // Build 5 regular levels + 1 boss level programmatically
         levels.add(new Level(LevelFactory.level1()));
         levels.add(new Level(LevelFactory.level2()));
         levels.add(new Level(LevelFactory.level3()));
         levels.add(new Level(LevelFactory.level4()));
         levels.add(new Level(LevelFactory.level5()));
+        levels.add(new Level(LevelFactory.bossArena())); // Level 6: Boss Arena
+    }
+    
+    /**
+     * Check if current level is the boss arena.
+     */
+    public boolean isBossLevel() {
+        return currentLevelIdx == 5; // Boss is level index 5 (6th level)
     }
 
     public void draw(Graphics g, int cameraOffsetX){

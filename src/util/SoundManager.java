@@ -7,13 +7,19 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Simple sound manager for playing game sound effects.
+ * Simple sound manager for playing game sound effects and background music.
  * Currently configured to handle missing sound files gracefully.
  */
 public class SoundManager {
     private static final Map<SoundEffect, Clip> soundClips = new HashMap<>();
+    private static Clip backgroundMusicClip = null;
     private static boolean soundEnabled = true;
+    private static boolean musicEnabled = true;
     private static boolean initialized = false;
+    
+    /** Default volume for background music (0.0 to 1.0) */
+    private static final float DEFAULT_MUSIC_VOLUME = 0.5f;
+    private static float musicVolume = DEFAULT_MUSIC_VOLUME;
     
     public enum SoundEffect {
         PLAYER_JUMP("/sounds/jump.wav"),
@@ -22,7 +28,10 @@ public class SoundManager {
         PLAYER_DEATH("/sounds/player_death.wav"),
         ENEMY_DAMAGE("/sounds/enemy_damage.wav"),
         ENEMY_DEATH("/sounds/enemy_death.wav"),
-        COIN_COLLECT("/sounds/coin.wav");
+        COIN_COLLECT("/sounds/coin.wav"),
+        BOSS_ATTACK("/sounds/attack.wav"),      // Reuse attack sound for boss
+        BOSS_DAMAGE("/sounds/enemy_damage.wav"), // Reuse enemy damage for boss
+        BOSS_DEATH("/sounds/enemy_death.wav");   // Reuse enemy death for boss
         
         private final String path;
         
@@ -34,6 +43,8 @@ public class SoundManager {
             return path;
         }
     }
+    
+    private static final String BACKGROUND_MUSIC_PATH = "/sounds/background_music.wav";
     
     /**
      * Initialize the sound system. Call this once at game start.
@@ -51,6 +62,9 @@ public class SoundManager {
                 System.out.println("[SoundManager] Sound file not found: " + effect.getPath() + " (optional)");
             }
         }
+        
+        // Load background music
+        loadBackgroundMusic();
     }
     
     /**
@@ -83,6 +97,137 @@ public class SoundManager {
                 }
             }
         }
+    }
+    
+    /**
+     * Load background music for looping playback.
+     * Handles format conversion if needed.
+     */
+    private static void loadBackgroundMusic() {
+        InputStream is = null;
+        AudioInputStream audioStream = null;
+        
+        try {
+            is = SoundManager.class.getResourceAsStream(BACKGROUND_MUSIC_PATH);
+            if (is == null) {
+                System.out.println("[SoundManager] Background music not found: " + BACKGROUND_MUSIC_PATH + " (optional)");
+                return;
+            }
+            
+            audioStream = AudioSystem.getAudioInputStream(is);
+            AudioFormat baseFormat = audioStream.getFormat();
+            
+            System.out.println("[SoundManager] Original format: " + baseFormat);
+            
+            // Try to convert to PCM_SIGNED 16-bit if current format is float
+            AudioInputStream streamToUse = audioStream;
+            if (baseFormat.getEncoding() == AudioFormat.Encoding.PCM_FLOAT) {
+                final int TARGET_BIT_DEPTH = 16;
+                final int BYTES_PER_SAMPLE = TARGET_BIT_DEPTH / 8; // 2 bytes for 16-bit
+                
+                AudioFormat targetFormat = new AudioFormat(
+                    AudioFormat.Encoding.PCM_SIGNED,
+                    baseFormat.getSampleRate(),
+                    TARGET_BIT_DEPTH,
+                    baseFormat.getChannels(),
+                    baseFormat.getChannels() * BYTES_PER_SAMPLE,  // frame size = channels * bytes per sample
+                    baseFormat.getSampleRate(),
+                    false  // little-endian
+                );
+                
+                if (AudioSystem.isConversionSupported(targetFormat, baseFormat)) {
+                    streamToUse = AudioSystem.getAudioInputStream(targetFormat, audioStream);
+                    System.out.println("[SoundManager] Converted to format: " + streamToUse.getFormat());
+                }
+            }
+            
+            // Get a clip that supports this format
+            DataLine.Info info = new DataLine.Info(Clip.class, streamToUse.getFormat());
+            if (AudioSystem.isLineSupported(info)) {
+                backgroundMusicClip = (Clip) AudioSystem.getLine(info);
+                backgroundMusicClip.open(streamToUse);
+                
+                // Set volume
+                setMusicVolume(musicVolume);
+                
+                System.out.println("[SoundManager] Background music loaded successfully.");
+            } else {
+                System.out.println("[SoundManager] Audio format not supported: " + streamToUse.getFormat());
+                System.out.println("[SoundManager] Game will continue without background music.");
+                backgroundMusicClip = null;
+            }
+            
+        // IllegalArgumentException can be thrown by AudioFormat constructor or AudioSystem methods
+        // when format parameters are invalid or unsupported
+        } catch (UnsupportedAudioFileException | IOException | LineUnavailableException | IllegalArgumentException e) {
+            System.out.println("[SoundManager] Could not load background music: " + BACKGROUND_MUSIC_PATH);
+            System.out.println("[SoundManager] Reason: " + e.getMessage());
+            System.out.println("[SoundManager] Game will continue without background music.");
+            backgroundMusicClip = null;
+        } finally {
+            // Close input stream
+            try {
+                if (audioStream != null) audioStream.close();
+                if (is != null) is.close();
+            } catch (IOException e) {
+                // Ignore close errors
+            }
+        }
+    }
+    
+    /**
+     * Start playing background music on loop.
+     */
+    public static void startBackgroundMusic() {
+        if (!musicEnabled || backgroundMusicClip == null) return;
+        
+        if (!backgroundMusicClip.isRunning()) {
+            backgroundMusicClip.setFramePosition(0);
+            backgroundMusicClip.loop(Clip.LOOP_CONTINUOUSLY);
+        }
+    }
+    
+    /**
+     * Stop the background music.
+     */
+    public static void stopBackgroundMusic() {
+        if (backgroundMusicClip != null && backgroundMusicClip.isRunning()) {
+            backgroundMusicClip.stop();
+        }
+    }
+    
+    /**
+     * Set the volume for background music (0.0 to 1.0).
+     */
+    public static void setMusicVolume(float volume) {
+        musicVolume = Math.max(0f, Math.min(1f, volume));
+        if (backgroundMusicClip != null) {
+            try {
+                FloatControl volumeControl = (FloatControl) backgroundMusicClip.getControl(FloatControl.Type.MASTER_GAIN);
+                // Convert 0-1 to decibels (logarithmic scale)
+                float dB = (float) (Math.log10(Math.max(0.0001, musicVolume)) * 20);
+                volumeControl.setValue(Math.max(volumeControl.getMinimum(), Math.min(volumeControl.getMaximum(), dB)));
+            } catch (IllegalArgumentException e) {
+                // Volume control not supported - ignore
+            }
+        }
+    }
+    
+    /**
+     * Enable or disable background music.
+     */
+    public static void setMusicEnabled(boolean enabled) {
+        musicEnabled = enabled;
+        if (!enabled) {
+            stopBackgroundMusic();
+        }
+    }
+    
+    /**
+     * Check if music is enabled.
+     */
+    public static boolean isMusicEnabled() {
+        return musicEnabled;
     }
     
     /**
@@ -120,6 +265,11 @@ public class SoundManager {
      * Clean up resources when game closes.
      */
     public static void cleanup() {
+        stopBackgroundMusic();
+        if (backgroundMusicClip != null) {
+            backgroundMusicClip.close();
+            backgroundMusicClip = null;
+        }
         for (Clip clip : soundClips.values()) {
             if (clip != null) {
                 clip.close();

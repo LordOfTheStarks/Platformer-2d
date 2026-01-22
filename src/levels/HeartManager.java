@@ -131,6 +131,80 @@ public class HeartManager {
         if (!removed.isEmpty()) hearts.removeAll(removed);
         return collected;
     }
+    
+    /**
+     * Spawn multiple hearts in the boss arena (at least 3).
+     * Places hearts at strategic positions for the boss fight.
+     */
+    public void spawnBossArenaHearts(Level level, SpikeManager spikeManager) {
+        hearts.clear();
+        int[][] data = level.getLevelData();
+        if (data == null) return;
+
+        int levelWidth = level.getLevelWidth();
+        
+        // Boss arena heart positions (strategic locations for the fight)
+        // Place 3 hearts at different sections of the arena
+        int[] heartXPositions = {
+            (int)(levelWidth * 0.2f),  // Left side (near player start)
+            (int)(levelWidth * 0.5f),  // Center (risky but accessible)
+            (int)(levelWidth * 0.75f)  // Right side (near boss, high risk high reward)
+        };
+        
+        for (int targetX : heartXPositions) {
+            // Find a valid position near the target
+            for (int attempt = 0; attempt < 8; attempt++) {
+                int xt = targetX + attempt - 4;
+                if (xt < 3 || xt >= levelWidth - 3) continue; // Avoid walls
+                
+                int groundYTile = findGroundYTile(data, xt);
+                if (groundYTile == -1) continue;
+
+                int px = xt * Game.TILES_SIZE + (Game.TILES_SIZE - Heart.W) / 2;
+                int py = groundYTile * Game.TILES_SIZE - Heart.H - (int)(HEART_Y_OFFSET * Game.SCALE);
+
+                if (!CanMoveHere(px, py, Heart.W, Heart.H, data)) continue;
+
+                // Skip placement if this heart would overlap any spike
+                Rectangle heartRect = new Rectangle(px, py, Heart.W, Heart.H);
+                boolean overlapsSpike = false;
+                if (spikeManager != null) {
+                    for (Spike s : spikeManager.getSpikes()) {
+                        if (heartRect.intersects(s.getBounds())) {
+                            overlapsSpike = true;
+                            break;
+                        }
+                    }
+                }
+                
+                // Also check we're not too close to existing hearts
+                boolean tooClose = false;
+                for (Heart existingHeart : hearts) {
+                    int dx = Math.abs(existingHeart.getX() - px);
+                    if (dx < Game.TILES_SIZE * 3) {
+                        tooClose = true;
+                        break;
+                    }
+                }
+                
+                if (!overlapsSpike && !tooClose) {
+                    hearts.add(new Heart(px, py));
+                    break; // Move to next target position
+                }
+            }
+        }
+        
+        // Ensure at least 3 hearts are placed
+        while (hearts.size() < 3) {
+            int randomX = 5 + (int)(Math.random() * (levelWidth - 10));
+            int groundYTile = findGroundYTile(data, randomX);
+            if (groundYTile != -1) {
+                int px = randomX * Game.TILES_SIZE + (Game.TILES_SIZE - Heart.W) / 2;
+                int py = groundYTile * Game.TILES_SIZE - Heart.H - (int)(HEART_Y_OFFSET * Game.SCALE);
+                hearts.add(new Heart(px, py));
+            }
+        }
+    }
 
     public void update() {
         if (frames == null || frames.length == 0) return;
