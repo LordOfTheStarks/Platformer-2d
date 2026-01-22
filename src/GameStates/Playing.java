@@ -246,9 +246,9 @@ public class Playing extends State implements StateMethods {
             long now = System.currentTimeMillis();
 
             // Boss contact damage (1 heart)
-            if (!boss.isDying() && boss.collidesWithPlayer(player.getHitBox())) {
-                applyDamageToPlayer(1, now);
-            }
+//            if (!boss.isDying() && boss.collidesWithPlayer(player.getHitBox())) {
+//                applyDamageToPlayer(1, now);
+//            }
 
             // Boss projectile damage (1 heart each)
             int projectileDamage = boss.checkProjectilePlayerCollision(player.getHitBox());

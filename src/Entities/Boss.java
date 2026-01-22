@@ -27,8 +27,8 @@ public class Boss extends Entity {
 
     // Movement - faster than normal enemies (normal enemy speed is 0.5f)
     /** Speed multiplier for boss movement (faster than regular enemies) */
-    private static final float BASE_SPEED_MULTIPLIER = 0.8f;
-    private static final float CHARGE_SPEED_MULTIPLIER = 1.3f;
+    private static final float BASE_SPEED_MULTIPLIER = 0.2f;
+    private static final float CHARGE_SPEED_MULTIPLIER = 0.5f;
     private float xSpeed;
     private float baseSpeed = BASE_SPEED_MULTIPLIER * Game.SCALE;
     private float chargeSpeed = CHARGE_SPEED_MULTIPLIER * Game.SCALE;
