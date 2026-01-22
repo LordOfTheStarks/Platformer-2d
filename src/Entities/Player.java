@@ -325,13 +325,14 @@ public class Player extends Entity{
     /**
      * Returns the attack hitbox when the player is attacking, null otherwise.
      * The hitbox is positioned in front of the player based on facing direction.
-     * Size: approximately 30x40 pixels scaled.
+     * Size: approximately 50x45 pixels scaled (increased for better reach).
      */
     public Rectangle2D.Float getAttackHitbox() {
         if (!attacking) return null;
         
-        int attackW = (int)(30 * Game.SCALE);
-        int attackH = (int)(40 * Game.SCALE);
+        // Increased attack reach: 50 wide (was 30), 45 tall (was 40)
+        int attackW = (int)(50 * Game.SCALE);
+        int attackH = (int)(45 * Game.SCALE);
         
         float attackX;
         if (mirror) {

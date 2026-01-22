@@ -14,6 +14,7 @@ import java.util.List;
 /**
  * Boss enemy with 5 hearts, faster movement, and projectile attacks.
  * Deals 1 heart of damage to the player on contact.
+ * Uses the undeadking.png sprite sheet for visuals.
  */
 public class Boss extends Entity {
     private int[][] levelData;
@@ -44,12 +45,24 @@ public class Boss extends Entity {
     
     // Visual size for boss (larger than regular enemies)
     private static final int VISUAL_W = (int) (80f * Game.SCALE);
-    private static final int VISUAL_H = (int) (60f * Game.SCALE);
+    private static final int VISUAL_H = (int) (80f * Game.SCALE);
+    
+    // Sprite sheet constants (undeadking.png is 96x256)
+    // Assuming 4 rows of 64px tall sprites, each row 96px wide (single frame per row)
+    private static final int SPRITE_WIDTH = 96;
+    private static final int SPRITE_HEIGHT = 64;  // 256 / 4 = 64 pixels per frame
+    private static final int NUM_FRAMES = 4;
     
     // Animation
     private int animIndex = 0;
     private int animTick = 0;
-    private final int animSpeed = 6; // Faster animation
+    private final int animSpeed = 8; // Animation speed
+    
+    // Sprite
+    private BufferedImage spriteSheet;
+    private BufferedImage[] animationFrames;
+    private BufferedImage[] animationFramesMirrored;
+    private boolean facingLeft = false;
     
     // Player reference for targeting
     private Rectangle2D.Float playerHitBox;
@@ -62,6 +75,37 @@ public class Boss extends Entity {
         
         // Start moving right by default
         this.xSpeed = baseSpeed;
+        
+        // Load sprite
+        loadSprite();
+    }
+    
+    private void loadSprite() {
+        spriteSheet = LoadSave.getAtlas(LoadSave.UNDEAD_KING);
+        if (spriteSheet != null) {
+            animationFrames = new BufferedImage[NUM_FRAMES];
+            animationFramesMirrored = new BufferedImage[NUM_FRAMES];
+            
+            for (int i = 0; i < NUM_FRAMES; i++) {
+                // Extract each frame from the sprite sheet
+                animationFrames[i] = spriteSheet.getSubimage(0, i * SPRITE_HEIGHT, SPRITE_WIDTH, SPRITE_HEIGHT);
+                // Create mirrored version for facing left
+                animationFramesMirrored[i] = flipImage(animationFrames[i]);
+            }
+            System.out.println("[Boss] Loaded undead king sprite successfully.");
+        } else {
+            System.out.println("[Boss] Could not load undead king sprite, using fallback.");
+        }
+    }
+    
+    private BufferedImage flipImage(BufferedImage image) {
+        BufferedImage flipped = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_ARGB);
+        AffineTransform transform = new AffineTransform();
+        transform.setToScale(-1, 1);
+        transform.translate(-image.getWidth(), 0);
+        AffineTransformOp op = new AffineTransformOp(transform, AffineTransformOp.TYPE_NEAREST_NEIGHBOR);
+        op.filter(image, flipped);
+        return flipped;
     }
     
     public void setPlayerHitBox(Rectangle2D.Float playerHB) {
@@ -81,7 +125,7 @@ public class Boss extends Entity {
         if (animTick >= animSpeed) {
             animTick = 0;
             animIndex++;
-            if (animIndex >= 4) animIndex = 0; // 4 frame animation cycle
+            if (animIndex >= NUM_FRAMES) animIndex = 0;
         }
 
         // AI: Move toward player if we have a reference
@@ -91,8 +135,10 @@ public class Boss extends Entity {
             
             if (playerCenterX < bossCenterX - 20) {
                 xSpeed = -baseSpeed;
+                facingLeft = true;
             } else if (playerCenterX > bossCenterX + 20) {
                 xSpeed = baseSpeed;
+                facingLeft = false;
             }
         }
 
@@ -102,6 +148,7 @@ public class Boss extends Entity {
         } else {
             // Reverse direction if hitting wall
             xSpeed = -xSpeed;
+            facingLeft = !facingLeft;
         }
 
         // Edge ahead check
@@ -111,6 +158,7 @@ public class Boss extends Entity {
         // Turn around at edges
         if (!IsOnFloor(probeHB, levelData)) {
             xSpeed = -xSpeed;
+            facingLeft = !facingLeft;
         }
 
         // Gravity
@@ -159,11 +207,11 @@ public class Boss extends Entity {
     }
 
     public void render(Graphics g, int cameraOffsetX) {
-        // Draw boss body
-        int drawX = (int) hitBox.x - cameraOffsetX;
-        int drawY = (int) hitBox.y;
-        int drawW = (int) hitBox.width;
-        int drawH = (int) hitBox.height;
+        // Calculate draw position - center sprite on hitbox
+        int drawW = VISUAL_W;
+        int drawH = VISUAL_H;
+        int drawX = (int) hitBox.x - cameraOffsetX - (drawW - (int)hitBox.width) / 2;
+        int drawY = (int) hitBox.y - (drawH - (int)hitBox.height);
         
         // Apply death animation effects
         Graphics2D g2d = (Graphics2D) g;
@@ -173,10 +221,34 @@ public class Boss extends Entity {
             g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, Math.max(0, deathFadeAlpha)));
         }
         
+        // Draw the boss sprite
+        if (animationFrames != null && animationFrames[animIndex] != null) {
+            BufferedImage currentFrame = facingLeft ? animationFramesMirrored[animIndex] : animationFrames[animIndex];
+            g.drawImage(currentFrame, drawX, drawY, drawW, drawH, null);
+        } else {
+            // Fallback to colored rectangle if sprite not loaded
+            drawFallbackBoss(g, drawX, drawY, drawW, drawH);
+        }
+        
+        // Health bar above boss
+        if (!dying) {
+            drawHealthBar(g, drawX, drawY - (int)(25 * Game.SCALE), drawW);
+        }
+        
+        if (dying) {
+            g2d.setComposite(originalComposite);
+        }
+        
+        // Draw projectiles
+        for (Projectile p : projectiles) {
+            p.render(g, cameraOffsetX);
+        }
+    }
+    
+    private void drawFallbackBoss(Graphics g, int drawX, int drawY, int drawW, int drawH) {
         // Draw boss body (dark purple color to look menacing)
         Color bossColor = new Color(80, 20, 100);
-        if (xSpeed < 0) {
-            // Facing left - slightly different shade
+        if (facingLeft) {
             bossColor = new Color(90, 25, 110);
         }
         
@@ -184,7 +256,7 @@ public class Boss extends Entity {
         g.setColor(bossColor);
         g.fillRect(drawX, drawY, drawW, drawH);
         
-        // Boss crown/horns (to distinguish from regular enemies)
+        // Boss crown/horns
         g.setColor(new Color(200, 150, 50)); // Gold color
         int crownHeight = (int)(10 * Game.SCALE);
         int crownWidth = (int)(15 * Game.SCALE);
@@ -204,16 +276,6 @@ public class Boss extends Entity {
         g.fillOval(drawX + drawW/3 - eyeSize/2, eyeY, eyeSize, eyeSize);
         g.fillOval(drawX + 2*drawW/3 - eyeSize/2, eyeY, eyeSize, eyeSize);
         
-        // Eye glow
-        g.setColor(new Color(255, 100, 100, 100));
-        g.fillOval(drawX + drawW/3 - eyeSize, eyeY - eyeSize/2, eyeSize * 2, eyeSize * 2);
-        g.fillOval(drawX + 2*drawW/3 - eyeSize, eyeY - eyeSize/2, eyeSize * 2, eyeSize * 2);
-        
-        // Health bar above boss
-        if (!dying) {
-            drawHealthBar(g, drawX, drawY - (int)(25 * Game.SCALE), drawW);
-        }
-        
         // Boss label
         g.setColor(Color.WHITE);
         g.setFont(new Font("SansSerif", Font.BOLD, (int)(14 * Game.SCALE)));
@@ -222,15 +284,6 @@ public class Boss extends Entity {
         int labelX = drawX + (drawW - fm.stringWidth(label)) / 2;
         int labelY = drawY + drawH / 2 + fm.getAscent() / 2;
         g.drawString(label, labelX, labelY);
-        
-        if (dying) {
-            g2d.setComposite(originalComposite);
-        }
-        
-        // Draw projectiles
-        for (Projectile p : projectiles) {
-            p.render(g, cameraOffsetX);
-        }
     }
     
     private void drawHealthBar(Graphics g, int x, int y, int width) {

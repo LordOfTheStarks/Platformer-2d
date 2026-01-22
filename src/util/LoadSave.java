@@ -35,6 +35,9 @@ public class LoadSave {
     // Hearts
     public static String HEART_EMPTY      = "/heart2-empty.png";     // 16x16
     public static String HEART_FULL_SHEET = "/heart2-shine.png";     // 96x16, 6 frames each 16x16
+    
+    // Boss sprite
+    public static String UNDEAD_KING = "/undeadking.png";           // 96x256, boss sprite sheet
 
     public static BufferedImage getAtlas(String fileName){
         BufferedImage img = null;
