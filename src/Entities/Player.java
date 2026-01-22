@@ -16,7 +16,7 @@ public class Player extends Entity{
     private static ArrayList<BufferedImage[]> animations = new ArrayList<>();
 
     private int tick,index,speed= 30;
-    private int attackSpeed = 15; // Faster animation speed for attacks
+    private int attackSpeed = 5; // Faster attack animation for instant response (was 15)
     private int currentAction = RUNNING;
     private boolean moving = false,attacking = false, mirror = false;
     private boolean left,right,jump,inAir = false;
@@ -27,7 +27,7 @@ public class Player extends Entity{
     private float offsetX = 21* Game.SCALE , offsetY = 4*Game.SCALE;
     private float airSpeed = 0;
     private float gravity = 0.04f * Game.SCALE;
-    private float jumpSpeed = -2.8f * Game.SCALE; // Increased for better platforming
+    private float jumpSpeed = -2.5f * Game.SCALE; // Reduced by ~10% for lower jumps (was -2.8f)
     private float xSpeed;
 
     // Double jump

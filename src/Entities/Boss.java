@@ -30,6 +30,10 @@ public class Boss extends Entity {
     private int health = BOSS_MAX_HEALTH;
     private int maxHealth = BOSS_MAX_HEALTH;
     
+    // Damage cooldown to prevent one-shot
+    private long lastDamageTakenMs = 0;
+    private static final long DAMAGE_COOLDOWN_MS = 500; // 0.5 second invulnerability after hit
+    
     // Death animation
     private static final int DEATH_ANIMATION_DURATION = 60; // Longer death animation for boss
     private boolean dying = false;
@@ -48,21 +52,23 @@ public class Boss extends Entity {
     private static final int VISUAL_H = (int) (80f * Game.SCALE);
     
     // Sprite sheet constants (undeadking.png is 96x256)
-    // Assuming 4 rows of 64px tall sprites, each row 96px wide (single frame per row)
+    // Using first frame only (96x64) for single character display
     private static final int SPRITE_WIDTH = 96;
-    private static final int SPRITE_HEIGHT = 64;  // 256 / 4 = 64 pixels per frame
-    private static final int NUM_FRAMES = 4;
-    
-    // Animation
-    private int animIndex = 0;
-    private int animTick = 0;
-    private final int animSpeed = 8; // Animation speed
+    private static final int SPRITE_HEIGHT = 64;
     
     // Sprite
     private BufferedImage spriteSheet;
-    private BufferedImage[] animationFrames;
-    private BufferedImage[] animationFramesMirrored;
+    private BufferedImage currentFrame;  // Single frame at a time
+    private BufferedImage currentFrameMirrored;
     private boolean facingLeft = false;
+    
+    // Jump system for boss
+    private float airSpeed = 0;
+    private float gravity = 0.04f * Game.SCALE;
+    private float jumpSpeed = -3.0f * Game.SCALE;
+    private boolean inAir = false;
+    private long lastJumpTime = 0;
+    private static final long JUMP_COOLDOWN_MS = 2000; // Jump every 2 seconds
     
     // Player reference for targeting
     private Rectangle2D.Float playerHitBox;
@@ -83,15 +89,9 @@ public class Boss extends Entity {
     private void loadSprite() {
         spriteSheet = LoadSave.getAtlas(LoadSave.UNDEAD_KING);
         if (spriteSheet != null) {
-            animationFrames = new BufferedImage[NUM_FRAMES];
-            animationFramesMirrored = new BufferedImage[NUM_FRAMES];
-            
-            for (int i = 0; i < NUM_FRAMES; i++) {
-                // Extract each frame from the sprite sheet
-                animationFrames[i] = spriteSheet.getSubimage(0, i * SPRITE_HEIGHT, SPRITE_WIDTH, SPRITE_HEIGHT);
-                // Create mirrored version for facing left
-                animationFramesMirrored[i] = flipImage(animationFrames[i]);
-            }
+            // Get first frame only - display single character
+            currentFrame = spriteSheet.getSubimage(0, 0, SPRITE_WIDTH, SPRITE_HEIGHT);
+            currentFrameMirrored = flipImage(currentFrame);
             System.out.println("[Boss] Loaded undead king sprite successfully.");
         } else {
             System.out.println("[Boss] Could not load undead king sprite, using fallback.");
@@ -118,14 +118,6 @@ public class Boss extends Entity {
             deathAnimationTick++;
             deathFadeAlpha = 1.0f - ((float)deathAnimationTick / DEATH_ANIMATION_DURATION);
             return;
-        }
-        
-        // Animate
-        animTick++;
-        if (animTick >= animSpeed) {
-            animTick = 0;
-            animIndex++;
-            if (animIndex >= NUM_FRAMES) animIndex = 0;
         }
 
         // AI: Move toward player if we have a reference
@@ -161,10 +153,30 @@ public class Boss extends Entity {
             facingLeft = !facingLeft;
         }
 
-        // Gravity
-        if (CanMoveHere(hitBox.x, hitBox.y + 1, hitBox.width, hitBox.height, levelData)) {
-            hitBox.y += 1;
+        // Apply gravity
+        if (inAir) {
+            airSpeed += gravity;
+            if (CanMoveHere(hitBox.x, hitBox.y + airSpeed, hitBox.width, hitBox.height, levelData)) {
+                hitBox.y += airSpeed;
+            } else {
+                if (airSpeed > 0) {
+                    // Landed
+                    inAir = false;
+                    airSpeed = 0;
+                } else {
+                    // Hit ceiling
+                    airSpeed = 0;
+                }
+            }
+        } else {
+            // Check if still on floor
+            if (CanMoveHere(hitBox.x, hitBox.y + 1, hitBox.width, hitBox.height, levelData)) {
+                inAir = true;
+            }
         }
+        
+        // Try to jump periodically
+        tryJump();
         
         // Shoot projectiles at player
         shootAtPlayer();
@@ -174,6 +186,21 @@ public class Boss extends Entity {
             p.update();
         }
         projectiles.removeIf(p -> !p.isActive());
+    }
+    
+    /**
+     * Try to jump if cooldown has passed.
+     */
+    private void tryJump() {
+        if (inAir || dying) return;
+        
+        long now = System.currentTimeMillis();
+        if (now - lastJumpTime > JUMP_COOLDOWN_MS) {
+            // Jump!
+            inAir = true;
+            airSpeed = jumpSpeed;
+            lastJumpTime = now;
+        }
     }
     
     private void shootAtPlayer() {
@@ -221,10 +248,10 @@ public class Boss extends Entity {
             g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, Math.max(0, deathFadeAlpha)));
         }
         
-        // Draw the boss sprite
-        if (animationFrames != null && animationFrames[animIndex] != null) {
-            BufferedImage currentFrame = facingLeft ? animationFramesMirrored[animIndex] : animationFrames[animIndex];
-            g.drawImage(currentFrame, drawX, drawY, drawW, drawH, null);
+        // Draw the boss sprite - single frame only
+        if (currentFrame != null) {
+            BufferedImage frameToDraw = facingLeft ? currentFrameMirrored : currentFrame;
+            g.drawImage(frameToDraw, drawX, drawY, drawW, drawH, null);
         } else {
             // Fallback to colored rectangle if sprite not loaded
             drawFallbackBoss(g, drawX, drawY, drawW, drawH);
@@ -332,7 +359,15 @@ public class Boss extends Entity {
     // Health API
     public void takeDamage(int amount) {
         if (amount <= 0 || dying) return;
+        
+        // Check damage cooldown to prevent one-shot
+        long now = System.currentTimeMillis();
+        if (now - lastDamageTakenMs < DAMAGE_COOLDOWN_MS) {
+            return; // Still invulnerable from last hit
+        }
+        
         health = Math.max(0, health - amount);
+        lastDamageTakenMs = now;
         
         // Play damage sound
         util.SoundManager.play(util.SoundManager.SoundEffect.BOSS_DAMAGE);

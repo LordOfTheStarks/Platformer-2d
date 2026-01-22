@@ -390,9 +390,9 @@ public class Playing extends State implements StateMethods {
         // Skip pit death if dev immunity is active
         if (devImmunity) return;
         
-        // Death threshold: below the bottom of the game screen
-        // This triggers when player falls through gaps in the ground
-        int deathThreshold = GAME_HEIGHT + 50; // Small buffer below screen
+        // Death threshold: at the bottom of the game screen
+        // Reduced threshold to catch falls earlier (was GAME_HEIGHT + 50)
+        int deathThreshold = GAME_HEIGHT - 20;
         
         if (playerBottom() > deathThreshold) {
             triggerDeath();
