@@ -59,7 +59,7 @@ public class LevelManager {
      * Check if current level is the boss arena.
      */
     public boolean isBossLevel() {
-        return currentLevelIdx == 5; // Boss is level index 5 (6th level)
+        return isLastLevel(); // Boss is level index 5 (6th level)
     }
 
     public void draw(Graphics g, int cameraOffsetX){
