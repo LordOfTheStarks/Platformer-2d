@@ -57,6 +57,9 @@ public class Playing extends State implements StateMethods {
     
     // Background music started flag
     private boolean musicStarted = false;
+    
+    // Developer tools
+    private boolean devImmunity = false;  // Toggle with F1 - makes player immune to damage
 
     public Playing(Game game) {
         super(game);
@@ -303,8 +306,12 @@ public class Playing extends State implements StateMethods {
     
     /**
      * Apply damage to the player with cooldown check.
+     * Respects dev immunity mode.
      */
     private void applyDamageToPlayer(int damage, long currentTime) {
+        // Skip damage if dev immunity is active
+        if (devImmunity) return;
+        
         if (currentTime - lastDamageMs > damageCooldownMs) {
             player.takeHeartDamage(damage);
             lastDamageMs = currentTime;
@@ -315,6 +322,9 @@ public class Playing extends State implements StateMethods {
     }
 
     private void spikeManagerUpdateAndCheck() {
+        // Skip spike damage if dev immunity is active
+        if (devImmunity) return;
+        
         long now = System.currentTimeMillis();
         if (spikeManager.isPlayerOnSpike(player.getHitBox())) {
             if (now - lastDamageMs > damageCooldownMs) {
@@ -371,81 +381,20 @@ public class Playing extends State implements StateMethods {
     }
 
     /**
-     * Pit death handling for level 2:
-     * - Only applies in level 2 (index 1).
-     * - Only triggers death when the player just landed (prevInAir == true && current inAir == false)
-     *   within the pit columns and the landing point is below the platform height.
+     * Handle death when player falls off the map (through gaps or below screen).
+     * Works on all levels - triggers death when player falls below the visible area.
      */
     private void handlePitDeath() {
-        int currentIdx = levelManager.getCurrentLevelIndex();
-        if (currentIdx == 1 && !playerDead) {
-            Rectangle2D.Float hb = player.getHitBox();
-            int centerX = (int) (hb.x + hb.width / 2);
-            int xt = centerX / TILES_SIZE;
-            int[][] data = levelManager.getCurrentLevel().getLevelData();
-            int levelWidth = levelManager.getCurrentLevel().getLevelWidth();
-
-            if (data != null && xt >= 0 && xt < levelWidth) {
-                // Pit center derived from LevelFactory.level2 layout (now at tile 30 for 60-tile level)
-                int pitCenter = 30;
-                int pitLeft = pitCenter - 3;
-                int pitRight = pitCenter + 3;
-
-                // Only consider when player's horizontal center is over the pit columns
-                if (xt >= pitLeft && xt <= pitRight) {
-                    // Platform columns bridging the pit (per LevelFactory.level2)
-                    int leftPlatformStart = pitCenter - 5;
-                    int leftPlatformEnd = pitCenter - 1;
-                    int rightPlatformStart = pitCenter + 1;
-                    int rightPlatformEnd = pitCenter + 5;
-
-                    // Find the platform row by scanning those platform columns and
-                    // taking the deepest topmost solid among them; that represents platform height.
-                    int platformRow = Integer.MIN_VALUE;
-                    for (int x = leftPlatformStart; x <= leftPlatformEnd; x++) {
-                        if (x < 0 || x >= levelWidth) continue;
-                        for (int y = 0; y < Game.TILES_HEIGHT; y++) {
-                            if (data[y][x] != util.LevelFactory.AIR) {
-                                if (y > platformRow) platformRow = y;
-                                break;
-                            }
-                        }
-                    }
-                    for (int x = rightPlatformStart; x <= rightPlatformEnd; x++) {
-                        if (x < 0 || x >= levelWidth) continue;
-                        for (int y = 0; y < Game.TILES_HEIGHT; y++) {
-                            if (data[y][x] != util.LevelFactory.AIR) {
-                                if (y > platformRow) platformRow = y;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (platformRow == Integer.MIN_VALUE) {
-                        platformRow = Game.TILES_HEIGHT - 1; // fallback
-                    }
-
-                    // death threshold (pixels). Add a small margin so jumping over remains safe.
-                    int deathThresholdY = platformRow * TILES_SIZE + (TILES_SIZE / 2);
-
-                    int currBottom = playerBottom();
-                    boolean currInAir = player.isInAir();
-
-                    // Trigger death only when player was in-air last frame and is now not in-air (landed),
-                    // AND the landing is below the death threshold.
-                    if (prevInAir && !currInAir && currBottom > deathThresholdY) {
-                        triggerDeath();
-                        return;
-                    } else {
-                        // Player hasn't landed into the pit yet → safe
-                        return;
-                    }
-                }
-            }
-        }
-
-        // Fallback: if player falls far below the bottom of the screen, trigger death
-        if (playerBottom() > GAME_HEIGHT + 200 && !playerDead) {
+        if (playerDead) return;
+        
+        // Skip pit death if dev immunity is active
+        if (devImmunity) return;
+        
+        // Death threshold: below the bottom of the game screen
+        // This triggers when player falls through gaps in the ground
+        int deathThreshold = GAME_HEIGHT + 50; // Small buffer below screen
+        
+        if (playerBottom() > deathThreshold) {
             triggerDeath();
         }
     }
@@ -541,6 +490,11 @@ public class Playing extends State implements StateMethods {
 
         goldUI.draw(g, gold);
         heartsUI.draw(g, player.getHearts(), player.getMaxHearts());
+        
+        // Draw dev immunity indicator if active
+        if (devImmunity) {
+            drawDevModeIndicator(g);
+        }
 
         if (paused) {
             pauseOverlay.draw(g);
@@ -584,6 +538,37 @@ public class Playing extends State implements StateMethods {
         FontMetrics fm = g2.getFontMetrics();
         int textX = barX + (barWidth - fm.stringWidth(text)) / 2;
         int textY = barY + (barHeight + fm.getAscent()) / 2 - 2;
+        g2.drawString(text, textX, textY);
+    }
+    
+    /**
+     * Draw the developer mode indicator when immunity is active.
+     */
+    private void drawDevModeIndicator(Graphics g) {
+        Graphics2D g2 = (Graphics2D) g;
+        
+        // Draw in top-right corner
+        int padding = (int)(10 * SCALE);
+        int boxWidth = (int)(150 * SCALE);
+        int boxHeight = (int)(25 * SCALE);
+        int boxX = GAME_WIDTH - boxWidth - padding;
+        int boxY = padding;
+        
+        // Semi-transparent green background
+        g2.setColor(new Color(0, 150, 0, 180));
+        g2.fillRect(boxX, boxY, boxWidth, boxHeight);
+        
+        // Border
+        g2.setColor(new Color(0, 255, 0));
+        g2.drawRect(boxX, boxY, boxWidth, boxHeight);
+        
+        // Text
+        g2.setColor(Color.WHITE);
+        g2.setFont(new Font("SansSerif", Font.BOLD, (int)(12 * SCALE)));
+        String text = "DEV: IMMUNITY ON";
+        FontMetrics fm = g2.getFontMetrics();
+        int textX = boxX + (boxWidth - fm.stringWidth(text)) / 2;
+        int textY = boxY + (boxHeight + fm.getAscent()) / 2 - 2;
         g2.drawString(text, textX, textY);
     }
 
@@ -658,6 +643,11 @@ public class Playing extends State implements StateMethods {
             case KeyEvent.VK_D, KeyEvent.VK_RIGHT -> player.setRight(true);
             case KeyEvent.VK_SPACE -> player.setJump(true);
             case KeyEvent.VK_ESCAPE -> paused = !paused;
+            // Developer tools
+            case KeyEvent.VK_F1 -> {
+                devImmunity = !devImmunity;
+                System.out.println("[DEV] Immunity " + (devImmunity ? "ENABLED" : "DISABLED"));
+            }
         }
     }
 
