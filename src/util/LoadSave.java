@@ -35,6 +35,12 @@ public class LoadSave {
     // Hearts
     public static String HEART_EMPTY      = "/heart2-empty.png";     // 16x16
     public static String HEART_FULL_SHEET = "/heart2-shine.png";     // 96x16, 6 frames each 16x16
+
+    public static String BOSS_IDLE = "/Boss_Sprites/IDLE.png";
+    public static String BOSS_ATTACK = "/Boss_Sprites/ATTACK.png";
+    public static String BOSS_FLYING = "/Boss_Sprites/FLYING.png";
+    public static String BOSS_HURT = "/Boss_Sprites/HURT.png";
+    public static String BOSS_DEATH = "/Boss_Sprites/DEATH.png";
     
     // Boss sprite
     public static String UNDEAD_KING = "/undeadking.png";           // 96x256, boss sprite sheet
