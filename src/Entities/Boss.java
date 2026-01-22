@@ -15,15 +15,39 @@ import java.util.List;
  * Boss enemy with 5 hearts, faster movement, and projectile attacks.
  * Deals 1 heart of damage to the player on contact.
  * Uses the undeadking.png sprite sheet for visuals.
+ * 
+ * Complex AI behavior:
+ * - Patrols the arena when player is far
+ * - Charges aggressively when player is close
+ * - Jumps to reach platforms and dodge attacks
+ * - Shoots projectiles at player
  */
 public class Boss extends Entity {
     private int[][] levelData;
 
     // Movement - faster than normal enemies (normal enemy speed is 0.5f)
     /** Speed multiplier for boss movement (faster than regular enemies) */
-    private static final float BASE_SPEED_MULTIPLIER = 1.2f;
+    private static final float BASE_SPEED_MULTIPLIER = 1.5f;
+    private static final float CHARGE_SPEED_MULTIPLIER = 2.5f;
     private float xSpeed;
     private float baseSpeed = BASE_SPEED_MULTIPLIER * Game.SCALE;
+    private float chargeSpeed = CHARGE_SPEED_MULTIPLIER * Game.SCALE;
+    
+    // AI State machine
+    private enum BossState {
+        PATROL,     // Moving back and forth
+        CHASE,      // Chasing player aggressively
+        ATTACK,     // Preparing or executing attack
+        RETREAT     // Moving away after taking damage
+    }
+    private BossState state = BossState.PATROL;
+    private long stateChangeTime = 0;
+    private static final long STATE_DURATION_MS = 2000; // Min time in each state
+    
+    // Patrol parameters
+    private float patrolLeftBound;
+    private float patrolRightBound;
+    private boolean patrollingRight = true;
     
     // Health system - 5 hearts
     private static final int BOSS_MAX_HEALTH = 5;
@@ -42,10 +66,10 @@ public class Boss extends Entity {
     
     // Attack system - projectiles
     /** Cooldown between projectile shots (milliseconds) */
-    private static final long PROJECTILE_COOLDOWN_MS = 1500L;
+    private static final long PROJECTILE_COOLDOWN_MS = 1200L;
     private List<Projectile> projectiles = new ArrayList<>();
     private long lastProjectileTime = 0;
-    private float projectileSpeed = 3.0f * Game.SCALE;
+    private float projectileSpeed = 3.5f * Game.SCALE;
     
     // Visual size for boss (larger than regular enemies)
     private static final int VISUAL_W = (int) (80f * Game.SCALE);
@@ -64,11 +88,11 @@ public class Boss extends Entity {
     
     // Jump system for boss
     private float airSpeed = 0;
-    private float gravity = 0.04f * Game.SCALE;
-    private float jumpSpeed = -3.0f * Game.SCALE;
+    private float gravity = 0.05f * Game.SCALE;
+    private float jumpSpeed = -3.5f * Game.SCALE;
     private boolean inAir = false;
     private long lastJumpTime = 0;
-    private static final long JUMP_COOLDOWN_MS = 2000; // Jump every 2 seconds
+    private static final long JUMP_COOLDOWN_MS = 1500; // Jump every 1.5 seconds
     
     // Player reference for targeting
     private Rectangle2D.Float playerHitBox;
@@ -79,8 +103,17 @@ public class Boss extends Entity {
         // Boss has a larger hitbox
         initHitBox(x, y, w - (int)(10*Game.SCALE), h - (int)(10*Game.SCALE));
         
+        // Set patrol bounds based on arena
+        // Arena is 45 tiles wide: tiles 0-1 are left wall, tiles 43-44 are right wall
+        // Patrol area: tiles 3-41 (inside the walls with margin)
+        patrolLeftBound = 3 * Game.TILES_SIZE;
+        patrolRightBound = 41 * Game.TILES_SIZE;
+        
         // Start moving right by default
         this.xSpeed = baseSpeed;
+        patrollingRight = true;
+        state = BossState.PATROL;
+        stateChangeTime = System.currentTimeMillis();
         
         // Load sprite
         loadSprite();
@@ -120,40 +153,202 @@ public class Boss extends Entity {
             return;
         }
 
-        // AI: Move toward player if we have a reference
-        if (playerHitBox != null) {
-            float playerCenterX = playerHitBox.x + playerHitBox.width / 2;
-            float bossCenterX = hitBox.x + hitBox.width / 2;
-            
-            if (playerCenterX < bossCenterX - 20) {
-                xSpeed = -baseSpeed;
-                facingLeft = true;
-            } else if (playerCenterX > bossCenterX + 20) {
-                xSpeed = baseSpeed;
-                facingLeft = false;
-            }
+        // Update AI state
+        updateAIState();
+        
+        // Execute behavior based on state
+        switch (state) {
+            case PATROL -> executePatrol();
+            case CHASE -> executeChase();
+            case ATTACK -> executeAttack();
+            case RETREAT -> executeRetreat();
         }
 
-        // Use xSpeed for horizontal movement
+        // Apply horizontal movement
+        applyMovement();
+        
+        // Apply gravity and vertical movement
+        applyGravity();
+        
+        // Try to jump based on state and timing
+        tryJump();
+        
+        // Shoot projectiles at player
+        shootAtPlayer();
+        
+        // Update projectiles
+        for (Projectile p : projectiles) {
+            p.update();
+        }
+        projectiles.removeIf(p -> !p.isActive());
+    }
+    
+    /**
+     * Update AI state based on player distance and timing.
+     */
+    private void updateAIState() {
+        if (playerHitBox == null) {
+            state = BossState.PATROL;
+            return;
+        }
+        
+        float playerCenterX = playerHitBox.x + playerHitBox.width / 2;
+        float bossCenterX = hitBox.x + hitBox.width / 2;
+        float distance = Math.abs(playerCenterX - bossCenterX);
+        
+        long now = System.currentTimeMillis();
+        long timeInState = now - stateChangeTime;
+        
+        // State transitions
+        switch (state) {
+            case PATROL -> {
+                // Switch to chase if player is within medium range
+                if (distance < 300 * Game.SCALE) {
+                    state = BossState.CHASE;
+                    stateChangeTime = now;
+                }
+            }
+            case CHASE -> {
+                // Switch to attack if very close
+                if (distance < 100 * Game.SCALE && timeInState > 500) {
+                    state = BossState.ATTACK;
+                    stateChangeTime = now;
+                }
+                // Return to patrol if player is far
+                else if (distance > 400 * Game.SCALE && timeInState > STATE_DURATION_MS) {
+                    state = BossState.PATROL;
+                    stateChangeTime = now;
+                }
+            }
+            case ATTACK -> {
+                // Return to chase after attack duration
+                if (timeInState > 800) {
+                    state = BossState.CHASE;
+                    stateChangeTime = now;
+                }
+            }
+            case RETREAT -> {
+                // Return to chase after retreat
+                if (timeInState > 1000) {
+                    state = BossState.CHASE;
+                    stateChangeTime = now;
+                }
+            }
+        }
+    }
+    
+    /**
+     * Patrol back and forth in the arena.
+     */
+    private void executePatrol() {
+        float currentSpeed = baseSpeed;
+        
+        // Patrol between bounds
+        if (patrollingRight) {
+            xSpeed = currentSpeed;
+            facingLeft = false;
+            if (hitBox.x + hitBox.width >= patrolRightBound) {
+                patrollingRight = false;
+            }
+        } else {
+            xSpeed = -currentSpeed;
+            facingLeft = true;
+            if (hitBox.x <= patrolLeftBound) {
+                patrollingRight = true;
+            }
+        }
+    }
+    
+    /**
+     * Chase player aggressively.
+     */
+    private void executeChase() {
+        if (playerHitBox == null) return;
+        
+        float playerCenterX = playerHitBox.x + playerHitBox.width / 2;
+        float bossCenterX = hitBox.x + hitBox.width / 2;
+        
+        // Move faster toward player
+        if (playerCenterX < bossCenterX - 15) {
+            xSpeed = -chargeSpeed;
+            facingLeft = true;
+        } else if (playerCenterX > bossCenterX + 15) {
+            xSpeed = chargeSpeed;
+            facingLeft = false;
+        } else {
+            // Very close - slow down for accuracy
+            xSpeed = 0;
+        }
+    }
+    
+    /**
+     * Execute attack (charge at player).
+     */
+    private void executeAttack() {
+        if (playerHitBox == null) return;
+        
+        float playerCenterX = playerHitBox.x + playerHitBox.width / 2;
+        float bossCenterX = hitBox.x + hitBox.width / 2;
+        
+        // Charge at full speed
+        if (playerCenterX < bossCenterX) {
+            xSpeed = -chargeSpeed * 1.3f;
+            facingLeft = true;
+        } else {
+            xSpeed = chargeSpeed * 1.3f;
+            facingLeft = false;
+        }
+    }
+    
+    /**
+     * Retreat after taking damage.
+     */
+    private void executeRetreat() {
+        if (playerHitBox == null) return;
+        
+        float playerCenterX = playerHitBox.x + playerHitBox.width / 2;
+        float bossCenterX = hitBox.x + hitBox.width / 2;
+        
+        // Move away from player
+        if (playerCenterX < bossCenterX) {
+            xSpeed = chargeSpeed;  // Move right (away from player on left)
+            facingLeft = true;  // Still face player
+        } else {
+            xSpeed = -chargeSpeed;  // Move left (away from player on right)
+            facingLeft = false;  // Still face player
+        }
+    }
+    
+    /**
+     * Apply horizontal movement with collision checking.
+     */
+    private void applyMovement() {
+        // Apply xSpeed with collision
         if (CanMoveHere(hitBox.x + xSpeed, hitBox.y, hitBox.width, hitBox.height, levelData)) {
             hitBox.x += xSpeed;
         } else {
-            // Reverse direction if hitting wall
-            xSpeed = -xSpeed;
-            facingLeft = !facingLeft;
+            // Hit wall - reverse direction in patrol mode
+            if (state == BossState.PATROL) {
+                patrollingRight = !patrollingRight;
+            }
+            xSpeed = -xSpeed * 0.5f;  // Bounce back slightly
         }
-
-        // Edge ahead check
-        float probeX = xSpeed > 0 ? (hitBox.x + hitBox.width + 1) : (hitBox.x - 1);
-        Rectangle2D.Float probeHB = new Rectangle2D.Float(probeX, hitBox.y, 1, hitBox.height);
-
-        // Turn around at edges
-        if (!IsOnFloor(probeHB, levelData)) {
-            xSpeed = -xSpeed;
-            facingLeft = !facingLeft;
+        
+        // Clamp to patrol bounds
+        if (hitBox.x < patrolLeftBound) {
+            hitBox.x = patrolLeftBound;
+            patrollingRight = true;
         }
-
-        // Apply gravity
+        if (hitBox.x + hitBox.width > patrolRightBound) {
+            hitBox.x = patrolRightBound - hitBox.width;
+            patrollingRight = false;
+        }
+    }
+    
+    /**
+     * Apply gravity and vertical movement.
+     */
+    private void applyGravity() {
         if (inAir) {
             airSpeed += gravity;
             if (CanMoveHere(hitBox.x, hitBox.y + airSpeed, hitBox.width, hitBox.height, levelData)) {
@@ -174,32 +369,38 @@ public class Boss extends Entity {
                 inAir = true;
             }
         }
-        
-        // Try to jump periodically
-        tryJump();
-        
-        // Shoot projectiles at player
-        shootAtPlayer();
-        
-        // Update projectiles
-        for (Projectile p : projectiles) {
-            p.update();
-        }
-        projectiles.removeIf(p -> !p.isActive());
     }
     
     /**
      * Try to jump if cooldown has passed.
+     * Jump more aggressively when chasing or attacking player.
      */
     private void tryJump() {
         if (inAir || dying) return;
         
         long now = System.currentTimeMillis();
-        if (now - lastJumpTime > JUMP_COOLDOWN_MS) {
-            // Jump!
-            inAir = true;
-            airSpeed = jumpSpeed;
-            lastJumpTime = now;
+        
+        // Vary jump frequency based on state
+        long jumpCooldown = JUMP_COOLDOWN_MS;
+        if (state == BossState.CHASE || state == BossState.ATTACK) {
+            jumpCooldown = 1000;  // Jump more frequently when aggressive
+        }
+        
+        if (now - lastJumpTime > jumpCooldown) {
+            // Check if player is above us (jump to reach them)
+            boolean shouldJump = true;
+            if (playerHitBox != null && state != BossState.PATROL) {
+                float playerY = playerHitBox.y;
+                float bossY = hitBox.y;
+                // Jump if player is above or at similar level
+                shouldJump = playerY <= bossY + 50;
+            }
+            
+            if (shouldJump) {
+                inAir = true;
+                airSpeed = jumpSpeed;
+                lastJumpTime = now;
+            }
         }
     }
     
@@ -368,6 +569,10 @@ public class Boss extends Entity {
         
         health = Math.max(0, health - amount);
         lastDamageTakenMs = now;
+        
+        // Switch to retreat state when hit
+        state = BossState.RETREAT;
+        stateChangeTime = now;
         
         // Play damage sound
         util.SoundManager.play(util.SoundManager.SoundEffect.BOSS_DAMAGE);
