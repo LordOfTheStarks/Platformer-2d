@@ -269,9 +269,9 @@ public class LevelFactory {
         for (int x = 20; x <= 24; x++) l[H-7][x] = PLATFORM;    // Center high (good for dodging)
         for (int x = 26; x <= 30; x++) l[H-5][x] = PLATFORM;    // Center-right
         
-        // Right side platforms (boss territory)
-        for (int x = 34; x <= 38; x++) l[H-4][x] = PLATFORM;    // Low right platform
-        for (int x = 35; x <= 37; x++) l[H-8][x] = PLATFORM;    // High right platform
+        // Right side platforms (boss territory) - shifted right to avoid boss spawn overlap
+        for (int x = 39; x <= 41; x++) l[H-4][x] = PLATFORM;    // Low right platform
+        for (int x = 40; x <= 42; x++) l[H-8][x] = PLATFORM;    // High right platform
         
         // Additional elevated platforms for vertical gameplay
         for (int x = 10; x <= 12; x++) l[H-9][x] = PLATFORM;    // Upper left
