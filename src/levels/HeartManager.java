@@ -227,4 +227,8 @@ public class HeartManager {
     public void clearAll() {
         hearts.clear();
     }
+
+    public void addHeartAt(int x, int y) {
+        hearts.add(new Heart(x, y));
+    }
 }

@@ -35,6 +35,7 @@ public class LoadSave {
     // Hearts
     public static String HEART_EMPTY      = "/heart2-empty.png";     // 16x16
     public static String HEART_FULL_SHEET = "/heart2-shine.png";     // 96x16, 6 frames each 16x16
+    public static String BOXES_SHEET = "/PlatformerPack_1/boxes.png"; // 48x16, 3 frames of 16x16
 
     public static String BOSS_IDLE = "/Boss_Sprites/IDLE.png";
     public static String BOSS_ATTACK = "/Boss_Sprites/ATTACK.png";
