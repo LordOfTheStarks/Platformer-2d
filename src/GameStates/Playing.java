@@ -4,6 +4,7 @@ import Entities.Boss;
 import Entities.EnemyManager;
 import Entities.Player;
 import Main.Game;
+import levels.BoxManager;
 import levels.LevelManager;
 import levels.SpikeManager;
 import ui.GoldUI;
@@ -24,6 +25,7 @@ public class Playing extends State implements StateMethods {
     private LevelManager levelManager;
     private EnemyManager enemyManager;
     private SpikeManager spikeManager;
+    private BoxManager boxManager;
     private CoinManager coinManager;
     private levels.HeartManager heartManager;
     private PauseOverlay pauseOverlay;
@@ -83,6 +85,9 @@ public class Playing extends State implements StateMethods {
 
         spikeManager = new SpikeManager();
         spikeManager.spawnForLevel(levelManager.getCurrentLevel());
+
+        boxManager = new BoxManager();
+        boxManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
 
         coinManager = new CoinManager();
         // ensure coins do not spawn on spikes
@@ -181,17 +186,17 @@ public class Playing extends State implements StateMethods {
 
         spikeManagerUpdateAndCheck();
 
-        // Check player attack collision with enemies (non-boss levels)
-        if (player.isAttacking() && !levelManager.isBossLevel()) {
+        // Check player attack collisions (enemies, boss, boxes)
+        if (player.isAttacking()) {
             Rectangle2D.Float attackHitbox = player.getAttackHitbox();
-            enemyManager.checkPlayerAttackCollision(attackHitbox);
-        }
-
-        // Check player attack collision with boss
-        if (player.isAttacking() && boss != null && !boss.isDying()) {
-            Rectangle2D.Float attackHitbox = player.getAttackHitbox();
-            if (attackHitbox != null && boss.getHitBox().intersects(attackHitbox)) {
+            if (!levelManager.isBossLevel()) {
+                enemyManager.checkPlayerAttackCollision(attackHitbox);
+            }
+            if (boss != null && !boss.isDying() && attackHitbox != null && boss.getHitBox().intersects(attackHitbox)) {
                 boss.takeDamage(1);
+            }
+            if (boxManager != null) {
+                boxManager.checkPlayerAttackCollision(attackHitbox, coinManager, heartManager);
             }
         }
 
@@ -396,6 +401,7 @@ public class Playing extends State implements StateMethods {
 
                 spikeManager.spawnForLevel(levelManager.getCurrentLevel());
                 coinManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
+                boxManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
                 cameraOffsetX = 0; // Reset camera to start of new level
             } else {
                 GameState.state = GameState.MENU;
@@ -470,6 +476,7 @@ public class Playing extends State implements StateMethods {
         enemyManager.spawnForLevel(levelManager.getCurrentLevel());
         spikeManager.spawnForLevel(levelManager.getCurrentLevel());
         coinManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
+        boxManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
         heartManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
         setPlayerLeftStart();
         player.resetHeartsToFull();
@@ -495,6 +502,7 @@ public class Playing extends State implements StateMethods {
     public void draw(Graphics g) {
         levelManager.draw(g, cameraOffsetX);
         spikeManager.draw(g, cameraOffsetX);
+        boxManager.draw(g, cameraOffsetX);
         // draw coins and hearts under player (so player appears above)
         coinManager.draw(g, cameraOffsetX);
         heartManager.draw(g, cameraOffsetX);
@@ -716,6 +724,7 @@ public class Playing extends State implements StateMethods {
         enemyManager.spawnForLevel(levelManager.getCurrentLevel());
         spikeManager.spawnForLevel(levelManager.getCurrentLevel());
         coinManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
+        boxManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
         heartManager.spawnForLevel(levelManager.getCurrentLevel(), spikeManager);
         setPlayerLeftStart();
         player.resetHeartsToFull();

@@ -138,4 +138,8 @@ public class CoinManager {
     public void clearAll() {
         coins.clear();
     }
+
+    public void addCoinAt(int x, int y) {
+        coins.add(new Coin(x, y));
+    }
 }
