@@ -11,6 +11,7 @@ import static util.Constants.UI.PauseButton.*;
 import static util.Constants.UI.URMButton.*;
 import static util.Constants.UI.VolumeButton.*;
 import static util.LoadSave.*;
+import util.SoundManager;
 
 public class PauseOverlay {
     private final Game game;
@@ -36,6 +37,7 @@ public class PauseOverlay {
         createSoundButtons();
         createVolumeButton();
         createUrmButtons();
+        syncSoundButtons();
     }
 
     private void loadBackGround() {
@@ -91,6 +93,7 @@ public class PauseOverlay {
     }
 
     public void update(){
+        syncSoundButtons();
         musicButton.update();
         sfxButton.update();
 
@@ -133,6 +136,10 @@ public class PauseOverlay {
         if(isIn(e,sfxButton))
             if (sfxButton.isMousePressed())
                 sfxButton.setMuted(!sfxButton.isMuted());
+
+        // Apply audio settings after toggles
+        SoundManager.setMusicEnabled(!musicButton.isMuted());
+        SoundManager.setSoundEnabled(!sfxButton.isMuted());
 
         musicButton.setMousePressed(false);
         sfxButton.setMousePressed(false);
@@ -201,5 +208,10 @@ public class PauseOverlay {
 
     private boolean isIn(MouseEvent e, PauseButtons b){
         return b.getBounds().contains(e.getX(),e.getY());
+    }
+
+    private void syncSoundButtons() {
+        musicButton.setMuted(!SoundManager.isMusicEnabled());
+        sfxButton.setMuted(!SoundManager.isSoundEnabled());
     }
 }

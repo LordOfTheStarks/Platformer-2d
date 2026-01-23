@@ -220,6 +220,8 @@ public class SoundManager {
         musicEnabled = enabled;
         if (!enabled) {
             stopBackgroundMusic();
+        } else {
+            startBackgroundMusic();
         }
     }
     
@@ -252,6 +254,13 @@ public class SoundManager {
      */
     public static void setSoundEnabled(boolean enabled) {
         soundEnabled = enabled;
+        if (!enabled) {
+            for (Clip clip : soundClips.values()) {
+                if (clip != null && clip.isRunning()) {
+                    clip.stop();
+                }
+            }
+        }
     }
     
     /**
