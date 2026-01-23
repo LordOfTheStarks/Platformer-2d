@@ -16,6 +16,7 @@ public class BoxManager {
     private static final int MAX_BOXES_PER_LEVEL = 6;
     private static final float COIN_DROP_CHANCE = 0.6f;
     private static final float HEART_DROP_CHANCE = 0.2f;
+    private static final int BOX_Y_OFFSET = 4; // lift slightly above ground
 
     private BufferedImage[] frames;
     private final List<Box> boxes = new ArrayList<>();
@@ -54,7 +55,7 @@ public class BoxManager {
             if (groundYTile == -1) continue;
 
             int px = xt * Game.TILES_SIZE + (Game.TILES_SIZE - Box.W) / 2;
-            int py = groundYTile * Game.TILES_SIZE - Box.H;
+            int py = groundYTile * Game.TILES_SIZE - Box.H - (int)(BOX_Y_OFFSET * Game.SCALE);
 
             if (!CanMoveHere(px, py, Box.W, Box.H, data)) continue;
 
